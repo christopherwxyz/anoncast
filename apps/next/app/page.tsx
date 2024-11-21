@@ -28,7 +28,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col p-4 max-w-screen-sm mx-auto gap-8">
+    <div className="flex h-screen flex-col p-4 max-w-screen-sm mx-auto gap-8">
       <div className="flex items-center justify-between">
         <div className="text-3xl font-bold">$ANON</div>
         <ConnectButton />

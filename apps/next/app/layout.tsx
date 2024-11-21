@@ -71,7 +71,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sfProRounded.className} antialiased`}>
+      <body className={`${sfProRounded.className} antialiased min-h-screen w-full`}>
         <Providers>{children}</Providers>
         <Toaster />
       </body>

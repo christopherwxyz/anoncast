@@ -138,7 +138,7 @@ export function Post({
   canPromote,
 }: { cast: Cast; canDelete: boolean; canPromote: boolean }) {
   return (
-    <div className="relative">
+    <div className="relative [overflow-wrap:anywhere]">
       <a
         href={`https://warpcast.com/${cast.author.username}/${cast.hash.slice(0, 10)}`}
         target="_blank"

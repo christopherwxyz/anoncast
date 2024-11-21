@@ -6,7 +6,6 @@ import { ProofType } from '@anon/utils/src/proofs'
 const redis = new Redis(process.env.REDIS_URL as string)
 
 const run = async () => {
-  // Start worker
   const usePromotePost = !!process.argv[2]
   const queueName = usePromotePost ? QueueName.PromotePost : QueueName.Default
   console.log(`Starting worker for ${queueName}`)

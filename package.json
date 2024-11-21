@@ -17,6 +17,7 @@
     "queue:start": "bun run --filter @anon/queue start",
     "queue:start:promote-post": "bun run --filter @anon/queue start promote-post",
     "queue:ui": "bun run --filter @anon/queue ui",
-    "queue:process-failed": "bun run --filter @anon/queue process-failed"
+    "queue:process-failed": "bun run --filter @anon/queue process-failed",
+    "queue:process-failed:promote-post": "bun run --filter @anon/queue process-failed promote-post"
   }
 }

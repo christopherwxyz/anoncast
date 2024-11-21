@@ -2,7 +2,9 @@ import { handler } from './handler'
 import { getQueue, QueueName } from './utils'
 
 async function main() {
-  const queue = getQueue(QueueName.Default)
+  const usePromotePost = !!process.argv[2]
+  const queueName = usePromotePost ? QueueName.PromotePost : QueueName.Default
+  const queue = getQueue(queueName)
   const failed = await queue.getFailed()
   console.log(new Date().toISOString(), 'found', failed.length, 'failed actions')
   for (const job of failed) {

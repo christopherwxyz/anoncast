@@ -19,17 +19,22 @@ export const twitterClient = new TwitterApi({
   accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET as string,
 })
 
-export async function promoteToTwitter(cast: Cast) {
+export async function promoteToTwitter(cast: Cast, asReply?: boolean) {
   const twitterEmbed = cast.embeds?.find(
     (e) => e.url?.includes('x.com') || e.url?.includes('twitter.com')
   )
 
   let quoteTweetId: string | undefined
+  let replyToTweetId: string | undefined
   if (twitterEmbed && twitterEmbed.url) {
     const url = new URL(twitterEmbed.url)
     const tweetId = url.pathname.split('/').pop()
     if (tweetId) {
-      quoteTweetId = tweetId
+      if (asReply) {
+        replyToTweetId = tweetId
+      } else {
+        quoteTweetId = tweetId
+      }
     }
   }
 
@@ -64,13 +69,14 @@ export async function promoteToTwitter(cast: Cast) {
     e.metadata?.content_type?.startsWith('image')
   )?.url
 
-  return await formatAndSubmitToTwitter(text, image, quoteTweetId)
+  return await formatAndSubmitToTwitter(text, image, quoteTweetId, replyToTweetId)
 }
 
 async function formatAndSubmitToTwitter(
   text: string,
   image?: string,
-  quoteTweetId?: string
+  quoteTweetId?: string,
+  replyToTweetId?: string
 ) {
   let mediaId: string | undefined
   if (image) {
@@ -109,6 +115,11 @@ async function formatAndSubmitToTwitter(
 
   if (quoteTweetId) {
     params.quote_tweet_id = quoteTweetId
+  }
+  if (replyToTweetId) {
+    params.reply = {
+      in_reply_to_tweet_id: replyToTweetId,
+    }
   }
 
   try {

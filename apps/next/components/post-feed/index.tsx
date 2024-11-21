@@ -19,6 +19,7 @@ import { Heart, Loader2, MessageSquare, RefreshCcw } from 'lucide-react'
 import { useState } from 'react'
 import { useSignMessage } from 'wagmi'
 import { api } from '@/lib/api'
+import { Checkbox } from '../ui/checkbox'
 
 export default function PostFeed({
   tokenAddress,
@@ -317,14 +318,19 @@ function PromoteButton({ cast }: { cast: Cast }) {
   const { toast } = useToast()
   const { promotePost, promoteState } = usePost()
   const [open, setOpen] = useState(false)
+  const [asReply, setAsReply] = useState(false)
 
   const handlePromote = async () => {
-    await promotePost(cast.hash)
+    await promotePost(cast.hash, asReply)
     toast({
       title: 'Post will be promoted in 1-2 minutes',
     })
     setOpen(false)
   }
+
+  const twitterEmbed = cast.embeds?.find(
+    (e) => e.url?.includes('x.com') || e.url?.includes('twitter.com')
+  )
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -340,6 +346,21 @@ function PromoteButton({ cast }: { cast: Cast }) {
             You will need to delete the post if you want to remove it from X/Twitter.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {twitterEmbed && (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="as-reply"
+              checked={asReply}
+              onCheckedChange={(checked) => setAsReply(checked as boolean)}
+            />
+            <label
+              htmlFor="as-reply"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Promote as reply
+            </label>
+          </div>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <Button onClick={handlePromote} disabled={promoteState.status !== 'idle'}>

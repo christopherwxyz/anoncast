@@ -122,7 +122,8 @@ export const CreatePostProvider = ({
         await api.submitAction(
           ProofType.CREATE_POST,
           Array.from(proof.proof),
-          proof.publicInputs.map((i) => Array.from(i))
+          proof.publicInputs.map((i) => Array.from(i)),
+          {}
         )
       }
 

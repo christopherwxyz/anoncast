@@ -51,7 +51,7 @@ export default function ActionComponent({
           <TokenRequirement
             tokenAmount={data}
             tokenNeeded={FARCASTER_POST}
-            oldTokenNeeded={FARCASTER_POST * BigInt(10 ** 2)}
+            oldTokenNeeded={BigInt(15_000)}
             string="Post on Farcaster"
             isConnected={!!userAddress}
           />
@@ -143,7 +143,7 @@ function TokenRequirement({
 }: {
   tokenAmount: bigint | undefined
   tokenNeeded: bigint
-  oldTokenNeeded: bigint | undefined
+  oldTokenNeeded?: bigint
   string: string
   isConnected: boolean
 }) {

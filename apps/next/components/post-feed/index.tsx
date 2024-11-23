@@ -20,16 +20,21 @@ import { useState } from 'react'
 import { useSignMessage } from 'wagmi'
 import { api } from '@/lib/api'
 import { Checkbox } from '../ui/checkbox'
+import AnimatedTabs from './animated-tabs'
+import { Skeleton } from '../ui/skeleton'
 
 export default function PostFeed({
   tokenAddress,
   userAddress,
-}: { tokenAddress: string; userAddress?: string }) {
+}: {
+  tokenAddress: string
+  userAddress?: string
+}) {
   const [selected, setSelected] = useState<'new' | 'trending'>('trending')
   const { data: balance } = useBalance(tokenAddress, userAddress)
   const { signMessageAsync } = useSignMessage()
 
-  const { data: trendingPosts } = useQuery({
+  const { data: trendingPosts, isLoading: isTrendingLoading } = useQuery({
     queryKey: ['trending', tokenAddress],
     queryFn: async (): Promise<Cast[]> => {
       const response = await api.getTrendingPosts(tokenAddress)
@@ -37,7 +42,7 @@ export default function PostFeed({
     },
   })
 
-  const { data: newPosts } = useQuery({
+  const { data: newPosts, isLoading: isNewLoading } = useQuery({
     queryKey: ['posts', tokenAddress],
     queryFn: async (): Promise<Cast[]> => {
       const response = await api.getNewPosts(tokenAddress)
@@ -48,7 +53,10 @@ export default function PostFeed({
   const getSignature = async ({
     address,
     timestamp,
-  }: { address: string; timestamp: number }) => {
+  }: {
+    address: string
+    timestamp: number
+  }) => {
     try {
       const message = `${address}:${timestamp}`
       const signature = await signMessageAsync({
@@ -76,46 +84,57 @@ export default function PostFeed({
       userAddress={userAddress}
       getSignature={getSignature}
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-row gap-4">
-          {trendingPosts && (
-            <div
-              className={`text-xl font-bold cursor-pointer ${
-                selected !== 'trending' ? 'text-gray-500' : ''
-              }`}
-              onClick={() => setSelected('trending')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setSelected('trending')
-                }
-              }}
-            >
-              Trending
-            </div>
-          )}
-          {newPosts && (
-            <div
-              className={`text-xl font-bold cursor-pointer ${
-                selected !== 'new' ? 'text-gray-500' : ''
-              }`}
-              onClick={() => setSelected('new')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setSelected('new')
-                }
-              }}
-            >
-              New
-            </div>
-          )}
+      <div className="flex flex-col gap-4 ">
+        <div className="flex flex-row justify-between">
+          <AnimatedTabs
+            tabs={['trending', 'new']}
+            activeTab={selected}
+            onTabChange={(tab) => setSelected(tab as 'new' | 'trending')}
+          />
         </div>
         {selected === 'new' ? (
-          <Posts canDelete={canDelete} canPromote={canPromote} casts={newPosts} />
-        ) : (
+          isNewLoading ? (
+            <SkeletonPosts />
+          ) : newPosts?.length && newPosts?.length > 0 ? (
+            <Posts canDelete={canDelete} canPromote={canPromote} casts={newPosts} />
+          ) : (
+            <h1>Something went wrong. Please refresh the page.</h1>
+          )
+        ) : isTrendingLoading ? (
+          <SkeletonPosts />
+        ) : trendingPosts?.length && trendingPosts?.length > 0 ? (
           <Posts canDelete={canDelete} canPromote={canPromote} casts={trendingPosts} />
+        ) : (
+          <h1>Something went wrong. Please refresh the page.</h1>
         )}
       </div>
     </PostProvider>
+  )
+}
+
+function SkeletonPosts() {
+  return (
+    <div className="flex flex-col gap-4">
+      <SkeletonPost />
+      <SkeletonPost />
+      <SkeletonPost />
+      <SkeletonPost />
+    </div>
+  )
+}
+
+function SkeletonPost() {
+  return (
+    <div className="relative [overflow-wrap:anywhere] bg-[#111111] rounded-xl overflow-hidden">
+      <div className="flex flex-col gap-4 border p-4 sm:p-6 rounded-xl">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-[250px]" />
+          <Skeleton className="h-4 w-[200px]" />
+        </div>
+
+        <Skeleton className="h-4 w-[100px]" />
+      </div>
+    </div>
   )
 }
 
@@ -123,7 +142,11 @@ function Posts({
   casts,
   canDelete,
   canPromote,
-}: { canDelete: boolean; canPromote: boolean; casts?: Cast[] }) {
+}: {
+  canDelete: boolean
+  canPromote: boolean
+  casts?: Cast[]
+}) {
   return (
     <div className="flex flex-col gap-4">
       {casts?.map((cast) => (
@@ -137,25 +160,51 @@ export function Post({
   cast,
   canDelete,
   canPromote,
-}: { cast: Cast; canDelete: boolean; canPromote: boolean }) {
+}: {
+  cast: Cast
+  canDelete: boolean
+  canPromote: boolean
+}) {
+  const cleanText = (text: string) => {
+    if (!text) return ''
+
+    // Split text into characters and only normalize those that look suspicious
+    return text
+      .split('')
+      .map((char) => {
+        // Check if char is in a problematic Unicode range or looks unusual
+        if (!/^[\x20-\x7E]$/.test(char)) {
+          // Only normalize suspicious characters
+          return char.normalize('NFKC')
+        }
+        return char
+      })
+      .join('')
+  }
+
+  // Usage in component
+  const sanitizedText = cleanText(cast.text)
+
   return (
-    <div className="relative [overflow-wrap:anywhere]">
+    <div className="relative [overflow-wrap:anywhere] bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden">
       <a
         href={`https://warpcast.com/${cast.author.username}/${cast.hash.slice(0, 10)}`}
         target="_blank"
         rel="noreferrer"
       >
-        <div className="flex flex-row gap-4 border p-4 rounded-xl">
-          <img src={cast.author?.pfp_url} className="w-10 h-10 rounded-full" alt="pfp" />
+        <div className="flex flex-row gap-4  p-4 sm:p-6  ">
           <div className="flex flex-col gap-2 w-full">
-            <div className="flex flex-row items-center gap-2">
-              <div className="text-md font-bold">{cast.author?.username}</div>
-              <div className="text-sm font-semibold">{timeAgo(cast.timestamp)}</div>
-            </div>
-            <div className="text-md">{cast.text}</div>
+            <div className=" font-medium whitespace-pre-wrap">{sanitizedText}</div>
             {cast.embeds.map((embed) => {
               if (embed.metadata?.image) {
-                return <img key={embed.url} src={embed.url} alt="embed" />
+                return (
+                  <img
+                    key={embed.url}
+                    src={embed.url}
+                    alt="embed"
+                    className="rounded-xl"
+                  />
+                )
               }
               if (embed.metadata?.html) {
                 return (
@@ -175,7 +224,7 @@ export function Post({
                       <h3 className="text-lg font-bold">
                         {embed.metadata?.html?.ogTitle}
                       </h3>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-zinc-400">
                         {embed.metadata?.html?.ogDescription}
                       </p>
                     </div>
@@ -187,7 +236,7 @@ export function Post({
                 return (
                   <div
                     key={embed.cast.hash}
-                    className="flex flex-row gap-4 border p-4 rounded-xl"
+                    className="flex flex-row gap-4 border border-zinc-700 p-4 rounded-xl"
                   >
                     <img
                       src={embed.cast.author?.pfp_url}
@@ -211,27 +260,39 @@ export function Post({
 
               return <div key={embed.url}>{embed.url}</div>
             })}
-            <div className="flex flex-row items-center gap-2 mt-2">
-              <div className="flex flex-row items-center gap-2 w-16">
-                <MessageSquare size={16} />
-                <p className="text-sm font-semibold">{cast.replies.count}</p>
+            <div className="flex flex-col gap-4 sm:flex-row justify-between">
+              <div className="flex flex-row items-center gap-2 mt-2">
+                <div className="text-sm font-medium text-zinc-400">
+                  {timeAgo(cast.timestamp)}
+                </div>
+                <div className="w-1 h-1 bg-zinc-400" />
+
+                <div className="flex flex-row items-center gap-1.5 ">
+                  <MessageSquare size={16} className="text-zinc-400" />
+                  <p className="text-sm font-medium">{cast.replies.count}</p>
+                </div>
+                <div className="flex flex-row items-center gap-1.5 ">
+                  <RefreshCcw size={16} className="text-zinc-400" />
+                  <p className="text-sm font-medium ">{cast.reactions.recasts_count}</p>
+                </div>
+                <div className="flex flex-row items-center gap-1.5 w-16">
+                  <Heart size={16} className="text-zinc-400" />
+                  <p className="text-sm font-medium">{cast.reactions.likes_count}</p>
+                </div>
               </div>
-              <div className="flex flex-row items-center gap-2 w-16">
-                <RefreshCcw size={16} />
-                <p className="text-sm font-semibold">{cast.reactions.recasts_count}</p>
-              </div>
-              <div className="flex flex-row items-center gap-2 w-16">
-                <Heart size={16} />
-                <p className="text-sm font-semibold">{cast.reactions.likes_count}</p>
+
+              <div
+                className=" flex flex-row gap-3 items-center"
+                onClick={(e) => e.preventDefault()}
+                onKeyDown={(e) => e.preventDefault()}
+              >
+                {canDelete && <DeleteButton cast={cast} />}
+                {canPromote && <PromoteButton cast={cast} />}
               </div>
             </div>
           </div>
         </div>
       </a>
-      <div className="absolute top-2 right-2 flex flex-row gap-2">
-        {canDelete && <DeleteButton cast={cast} />}
-        {canPromote && <PromoteButton cast={cast} />}
-      </div>
     </div>
   )
 }
@@ -276,9 +337,9 @@ function DeleteButton({ cast }: { cast: Cast }) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="sm" className="font-semibold">
+        <p className="text-sm text-red-500 underline decoration-dotted font-semibold cursor-pointer hover:text-red-400">
           Delete
-        </Button>
+        </p>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -335,9 +396,9 @@ function PromoteButton({ cast }: { cast: Cast }) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button size="sm" className="font-semibold">
+        <p className="text-sm underline decoration-dotted font-semibold cursor-pointer hover:text-red-400">
           Promote
-        </Button>
+        </p>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

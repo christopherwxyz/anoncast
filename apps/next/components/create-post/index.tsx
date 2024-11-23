@@ -1,7 +1,8 @@
+/* eslint-disable jsx-a11y/alt-text */
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { CreatePostProvider, useCreatePost } from './context'
-import { Image, Link, Loader2, Quote, Reply, X, Slash } from 'lucide-react'
+import { Image, Link, Loader2, Quote, Reply, SquareSlash, X } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 import { ReactNode, useRef, useState } from 'react'
 import {
@@ -37,7 +38,10 @@ export function CreatePost({
   getSignature: ({
     address,
     timestamp,
-  }: { address: string; timestamp: number }) => Promise<
+  }: {
+    address: string
+    timestamp: number
+  }) => Promise<
     | {
         signature: string
         message: string
@@ -81,7 +85,8 @@ export function CreatePost({
 }
 
 function CreatePostForm() {
-  const { text, setText, createPost, state } = useCreatePost()
+  const { text, setText, createPost, state, quote, embed, setEmbed, setQuote } =
+    useCreatePost()
   const { toast } = useToast()
   const [confetti, setConfetti] = useState(false)
 
@@ -90,6 +95,48 @@ function CreatePostForm() {
   const handleSetText = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (new Blob([e.target.value]).size > 320) return
     setText(e.target.value)
+
+    // Check for Warpcast URLs
+    const warpcastRegex = /https:\/\/warpcast\.com\/[^/]+\/0x[a-fA-F0-9]+/g
+    const warpcastMatches = Array.from(e.target.value.matchAll(warpcastRegex) || []).map(
+      (match) => match[0]
+    )
+
+    // Check for Twitter URLs
+    const twitterRegex = /https:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/g
+    const twitterMatches = Array.from(e.target.value.matchAll(twitterRegex) || []).map(
+      (match) => match[0]
+    )
+
+    // Try to set quote from Warpcast URLs
+    if (warpcastMatches.length > 0) {
+      const currentHash = quote?.hash
+      const urlHash = warpcastMatches[0].split('/').pop() // Get hash from URL
+
+      if (!quote || currentHash !== urlHash) {
+        // If no quote exists or URL hash changed, try to set a new one
+        api.getCast(warpcastMatches[0]).then((cast) => {
+          if (cast) {
+            setQuote(cast)
+          }
+        })
+      }
+    } else {
+      // Clear quote if no Warpcast URLs
+      setQuote(null)
+    }
+    // Handle Twitter URLs
+    if (twitterMatches.length > 0) {
+      const currentEmbed = embed
+      const twitterUrl = twitterMatches[0]
+
+      if (!currentEmbed || currentEmbed !== twitterUrl) {
+        setEmbed(twitterUrl)
+      }
+    } else {
+      // Clear embed if no Twitter URLs
+      setEmbed(null)
+    }
   }
 
   const handleCreatePost = async () => {
@@ -106,13 +153,13 @@ function CreatePostForm() {
       <Textarea
         value={text ?? ''}
         onChange={handleSetText}
-        className="h-32 resize-none"
-        placeholder="What's happening?"
+        className="h-32 p-3 resize-none font-medium !text-base placeholder:text-zinc-400 bg-zinc-950 border border-zinc-700"
+        placeholder="What's happening, anon?"
       />
       <RemoveableImage />
       <RemoveableEmbed />
       <RemoveableQuote />
-      <div className="flex justify-between">
+      <div className="flex flex-col sm:flex-row justify-between gap-4 xs:gap-0">
         <div className="flex gap-4">
           <UploadImage />
           <EmbedLink />
@@ -120,11 +167,11 @@ function CreatePostForm() {
           <QuoteCast />
           <Channel />
         </div>
-        <div className="flex flex-row items-center gap-2">
-          <p>{`${length} / 320`}</p>
+        <div className="flex flex-row items-center gap-4 sm: justify-between">
+          <p className="font-medium text-zinc-400">{`${length} / 320`}</p>
           <Button
             onClick={handleCreatePost}
-            className="font-bold text-md rounded-xl hover:scale-105 transition-all duration-300"
+            className="font-bold text-md rounded-md hover:scale-105 transition-all duration-300"
             disabled={!['idle', 'success', 'error'].includes(state.status)}
           >
             {state.status === 'generating' ? (
@@ -138,7 +185,7 @@ function CreatePostForm() {
                 <p>Awaiting signature</p>
               </div>
             ) : (
-              'Post'
+              'Post anonymously'
             )}
           </Button>
         </div>
@@ -186,17 +233,25 @@ function TooltipButton({
   tooltip,
   onClick,
   disabled,
+  className,
 }: {
   children: ReactNode
   tooltip: string
   onClick?: () => void
   disabled?: boolean
+  className?: string
 }) {
   return (
     <TooltipProvider>
       <Tooltip delayDuration={100}>
         <TooltipTrigger asChild>
-          <Button variant="outline" size="icon" onClick={onClick} disabled={disabled}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onClick}
+            disabled={disabled}
+            className={className}
+          >
             {children}
           </Button>
         </TooltipTrigger>
@@ -268,6 +323,7 @@ function UploadImage() {
       tooltip="Upload image"
       onClick={() => fileInputRef.current?.click()}
       disabled={loading || !!image || embedCount >= MAX_EMBEDS}
+      className="w-full sm:w-auto min-w-10 bg-zinc-950 border border-zinc-700"
     >
       <input
         ref={fileInputRef}
@@ -319,6 +375,7 @@ function EmbedLink() {
         <TooltipButton
           tooltip="Embed link"
           disabled={!!embed || embedCount >= MAX_EMBEDS}
+          className="w-full sm:w-auto min-w-10 bg-zinc-950 border border-zinc-700"
         >
           <Link />
         </TooltipButton>
@@ -328,7 +385,7 @@ function EmbedLink() {
           <DialogTitle>Embed link</DialogTitle>
           <DialogDescription>You can embed any website.</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col  gap-4 py-4">
+        <div className="flex flex-col  gap-4 py-4 ">
           <Input
             id="link"
             value={value}
@@ -370,7 +427,15 @@ function RemoveableEmbed() {
 
   return (
     <div className="relative">
-      <div className="w-full border rounded-xl overflow-hidden">
+      <div
+        className="w-full border rounded-xl overflow-hidden cursor-pointer"
+        onClick={() => window.open(embed, '_blank')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            window.open(embed, '_blank')
+          }
+        }}
+      >
         {image && (
           <img
             src={image}
@@ -380,7 +445,7 @@ function RemoveableEmbed() {
         )}
         <div className="p-2">
           <h3 className="text-lg font-bold">{title}</h3>
-          <p className="text-sm text-gray-600">{description}</p>
+          <p className="text-sm text-zinc-400">{description}</p>
         </div>
       </div>
       <Button
@@ -414,7 +479,11 @@ function ParentCast() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <TooltipButton tooltip="Reply to post" disabled={!!parent}>
+        <TooltipButton
+          tooltip="Reply to post"
+          disabled={!!parent}
+          className="w-full sm:w-auto min-w-10 bg-zinc-950 border border-zinc-700"
+        >
           <Reply />
         </TooltipButton>
       </DialogTrigger>
@@ -466,7 +535,7 @@ function RemoveableParent() {
           }
         }}
       >
-        <p className="text-sm text-gray-600">Replying to</p>
+        <p className="text-sm text-zinc-400">Replying to</p>
         {parent.author && (
           <div className="flex items-center gap-2">
             <img
@@ -509,12 +578,12 @@ function Channel() {
     setLoading(true)
     setError(null) // Clear any previous error
     try {
-    const data = await api.getChannel(value.replace('/', ''))
-    if (!data) {
-      setError('Couldn\'t find that channel.')
-    } else {
-      setChannel(data)
-      setOpen(false)
+      const data = await api.getChannel(value.replace('/', ''))
+      if (!data) {
+        setError("Couldn't find that channel.")
+      } else {
+        setChannel(data)
+        setOpen(false)
       }
     } catch (e) {
       console.error(e)
@@ -527,20 +596,25 @@ function Channel() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <TooltipButton tooltip="Channel">
+        <TooltipButton
+          tooltip="Channel"
+          className="w-full sm:w-auto min-w-10 bg-zinc-950 border border-zinc-700"
+        >
           {channel ? (
-            <img src={channel.image_url} alt={channel.name} className='rounded-sm' />
+            <img
+              src={channel.image_url}
+              alt={channel.name}
+              className="rounded-sm w-full h-full object-cover"
+            />
           ) : (
-            <Slash />
+            <SquareSlash />
           )}
         </TooltipButton>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Channel</DialogTitle>
-          <DialogDescription>
-            You can set a channel for your post.
-          </DialogDescription>
+          <DialogDescription>You can set a channel for your post.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-4">
           <Input
@@ -587,6 +661,7 @@ function QuoteCast() {
         <TooltipButton
           tooltip="Quote post"
           disabled={!!quote || embedCount >= MAX_EMBEDS}
+          className="w-full sm:w-auto min-w-10 bg-zinc-950 border border-zinc-700"
         >
           <Quote />
         </TooltipButton>
@@ -639,7 +714,7 @@ function RemoveableQuote() {
           }
         }}
       >
-        <p className="text-sm text-gray-600">Quoting</p>
+        <p className="text-sm text-zinc-400">Quoting</p>
         <div className="flex items-center gap-2">
           <img
             src={quote.author.pfp_url}

@@ -1,20 +1,15 @@
-import { Redis } from 'ioredis'
 import { createElysia } from '../utils'
 import { t } from 'elysia'
-import { buildHoldersTree } from '@anon/utils/src/merkle-tree'
+import { buildHoldersTree, getTree, setTree } from '@anon/utils/src/merkle-tree'
 import { ProofType } from '@anon/utils/src/proofs'
 import { TOKEN_CONFIG } from '@anon/utils/src/config'
-
-const redis = new Redis(process.env.REDIS_URL as string)
 
 export const merkleTreeRoutes = createElysia({ prefix: '/merkle-tree' }).post(
   '/',
   async ({ body }) => {
-    const cachedTree = await redis.get(
-      `anon:tree:sale:${body.tokenAddress}:${body.proofType}`
-    )
+    const cachedTree = await getTree(body.tokenAddress, body.proofType)
     if (cachedTree) {
-      return JSON.parse(cachedTree)
+      return cachedTree
     }
 
     const config = TOKEN_CONFIG[body.tokenAddress]
@@ -31,12 +26,7 @@ export const merkleTreeRoutes = createElysia({ prefix: '/merkle-tree' }).post(
       minAmount,
     })
 
-    await redis.set(
-      `anon:tree:sale:${body.tokenAddress}:${body.proofType}`,
-      JSON.stringify(tree),
-      'EX',
-      60 * 10
-    )
+    await setTree(body.tokenAddress, body.proofType, tree)
 
     return tree
   },

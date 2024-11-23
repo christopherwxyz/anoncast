@@ -1,5 +1,9 @@
 import { buildMimc7 as buildMimc } from 'circomlibjs'
 import { MerkleTreeMiMC, MiMC7 } from '../proofs/merkle-tree'
+import { Redis } from 'ioredis'
+import { ProofType, Tree } from '../proofs'
+
+const redis = new Redis(process.env.REDIS_URL as string)
 
 interface BuildTreeArgs {
   tokenAddress: string
@@ -9,7 +13,7 @@ interface BuildTreeArgs {
 
 export async function buildHoldersTree(args: BuildTreeArgs) {
   const mimc = await buildMimc()
-  const merkleTree = new MerkleTreeMiMC(12, mimc)
+  const merkleTree = new MerkleTreeMiMC(13, mimc)
 
   const owners = await fetchHolders(args)
   for (const owner of owners) {
@@ -52,18 +56,24 @@ async function fetchHolders(args: BuildTreeArgs) {
       'X-API-KEY': process.env.SIMPLEHASH_API_KEY ?? '',
     }
 
-    const response = await fetch(url, { headers })
-    const res: {
-      next_cursor: string
-      owners: Array<{
-        fungible_id: string
-        owner_address: string
-        quantity: number
-        quantity_string: string
-        first_transferred_date: string
-        last_transferred_date: string
-      }>
-    } = await response.json()
+    let retries = 5
+    let response
+
+    while (retries > 0) {
+      try {
+        response = await fetch(url, { headers })
+        if (response.ok) break
+        throw new Error(`HTTP error! status: ${response.status}`)
+      } catch (error) {
+        retries--
+        if (retries === 0) throw error
+        const delay = parseInt(response?.headers.get('Retry-After') ?? '5')
+        console.log(`Retrying in ${delay} seconds...`)
+        await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+      }
+    }
+
+    const res = await response!.json()
 
     let shouldBreak = false
     for (const owner of res.owners) {
@@ -85,4 +95,32 @@ async function fetchHolders(args: BuildTreeArgs) {
   }
 
   return owners
+}
+
+export async function getTree(tokenAddress: string, proofType: ProofType): Promise<Tree> {
+  const tree = await redis.get(`anon:tree:${tokenAddress}:${proofType}`)
+  return tree ? JSON.parse(tree) : null
+}
+
+export async function setTree(tokenAddress: string, proofType: ProofType, tree: Tree) {
+  await redis.set(`anon:tree:${tokenAddress}:${proofType}`, JSON.stringify(tree))
+  await addRoot(tokenAddress, proofType, tree.root)
+}
+
+export async function addRoot(
+  tokenAddress: string,
+  proofType: ProofType,
+  root: string,
+  maxRoots = 5
+) {
+  const key = `anon:roots:${tokenAddress}:${proofType}`
+  await redis.lpush(key, root)
+  await redis.ltrim(key, 0, maxRoots - 1)
+}
+
+export async function getValidRoots(
+  tokenAddress: string,
+  proofType: ProofType
+): Promise<string[]> {
+  return redis.lrange(`anon:roots:${tokenAddress}:${proofType}`, 0, -1)
 }

@@ -1,7 +1,6 @@
 import { Redis } from 'ioredis'
 import { createElysia } from '../utils'
 import { t } from 'elysia'
-import { ProofType } from '@anon/utils/src/proofs'
 import { neynar } from '../services/neynar'
 import { TOKEN_CONFIG } from '@anon/utils/src/config'
 

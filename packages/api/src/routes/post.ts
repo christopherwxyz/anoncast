@@ -8,6 +8,7 @@ import { promoteToTwitter } from '../services/twitter'
 import { createPostMapping, getPostMapping } from '@anon/db'
 import { getQueue, QueueName } from '@anon/queue/src/utils'
 import { Noir } from '@noir-lang/noir_js'
+import { getValidRoots } from '@anon/utils/src/merkle-tree'
 
 export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) {
   return createElysia({ prefix: '/posts' })
@@ -40,13 +41,9 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         if (!isValid) {
           throw new Error('Invalid proof')
         }
-
         const params = extractCreatePostData(body.publicInputs)
-        if (params.timestamp < Date.now() / 1000 - 600) {
-          return {
-            success: false,
-          }
-        }
+
+        await validateRoot(ProofType.CREATE_POST, params.tokenAddress, params.root)
 
         return await neynar.post(params)
       },
@@ -69,12 +66,8 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         }
 
         const params = extractSubmitHashData(body.publicInputs)
-        if (params.timestamp < Date.now() / 1000 - 600) {
-          return {
-            success: false,
-          }
-        }
 
+        await validateRoot(ProofType.DELETE_POST, params.tokenAddress, params.root)
         return await neynar.delete(params)
       },
       {
@@ -96,11 +89,8 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         }
 
         const params = extractSubmitHashData(body.publicInputs)
-        if (params.timestamp < Date.now() / 1000 - 600) {
-          return {
-            success: false,
-          }
-        }
+
+        await validateRoot(ProofType.PROMOTE_POST, params.tokenAddress, params.root)
 
         const mapping = await getPostMapping(params.hash)
         if (mapping?.tweetId) {
@@ -116,7 +106,7 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
           }
         }
 
-        const tweetId = await promoteToTwitter(cast.cast)
+        const tweetId = await promoteToTwitter(cast.cast, body.args?.asReply)
 
         if (!tweetId) {
           return {
@@ -135,6 +125,11 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         body: t.Object({
           proof: t.Array(t.Number()),
           publicInputs: t.Array(t.Array(t.Number())),
+          args: t.Optional(
+            t.Object({
+              asReply: t.Boolean(),
+            })
+          ),
         }),
       }
     )
@@ -212,5 +207,16 @@ function extractSubmitHashData(data: number[][]): SubmitHashParams {
     root: root as string,
     hash,
     tokenAddress: tokenAddress as string,
+  }
+}
+
+async function validateRoot(type: ProofType, tokenAddress: string, root: string) {
+  const validRoots = await getValidRoots(tokenAddress, type)
+  if (!validRoots.length) {
+    throw new Error('No valid roots found')
+  }
+
+  if (!validRoots.includes(root)) {
+    throw new Error('Invalid root')
   }
 }

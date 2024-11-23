@@ -267,75 +267,84 @@ function UploadImage() {
   const { setImage, embedCount, image } = useCreatePost()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    if (!files || files.length === 0) return
+    if (!files || files.length === 0) {
+      setError('No file selected')
+      return
+    }
+
+    const file = files[0]
+    if (!file.type.startsWith('image/')) {
+      setError('Invalid file type')
+      return
+    }
 
     setLoading(true)
-    const newFiles: { file: string; type: string }[] = []
-    const fileReadPromises = Array.from(files).map((file) => {
-      return new Promise<void>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          if (e.target?.result) {
-            newFiles.push({
-              file: (e.target.result as string).split(',')[1],
-              type: file.type,
-            })
-          }
-          resolve()
-        }
-        reader.readAsDataURL(file)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file, file.name)
+
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
       })
-    })
 
-    await Promise.all(fileReadPromises)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Upload failed: ${response.status}`)
+      }
 
-    if (newFiles.length === 0) {
+      const data = await response.json()
+
+      if (!data.success || !data.data?.link) {
+        throw new Error('Invalid response format')
+      }
+
+      setImage(data.data.link)
+      setError(null)
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      setError(error instanceof Error ? error.message : 'Upload failed')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const response = await fetch('https://imgur-apiv3.p.rapidapi.com/3/image', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Client-ID c2593243d3ea679',
-        'X-RapidApi-Key': 'H6XlGK0RRnmshCkkElumAWvWjiBLp1ItTOBjsncst1BaYKMS8H',
-      },
-      body: JSON.stringify({ image: newFiles[0].file }),
-    })
-
-    const data: { data: { link: string } } = await response.json()
-
-    if (!data.data.link) {
-      setLoading(false)
-      return
-    }
-
-    setImage(data.data.link)
-    setLoading(false)
   }
 
   return (
-    <TooltipButton
-      tooltip="Upload image"
-      onClick={() => fileInputRef.current?.click()}
-      disabled={loading || !!image || embedCount >= MAX_EMBEDS}
-      className="w-full sm:w-auto min-w-10 bg-zinc-950 border border-zinc-700"
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple={false}
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleImageSelect}
-      />
-      {loading && <Loader2 className="animate-spin" />}
-      {!loading && <Image />}
-    </TooltipButton>
+    <div className="relative">
+      <TooltipButton
+        tooltip="Upload image"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={loading || !!image || embedCount >= MAX_EMBEDS}
+        className="w-full sm:w-auto min-w-10 bg-zinc-950 border border-zinc-700"
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple={false}
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleImageSelect}
+        />
+        {loading && <Loader2 className="animate-spin" />}
+        {!loading && <Image />}
+      </TooltipButton>
+
+      {error && (
+        <div className="absolute top-12 left-0 z-10 bg-red-100 text-red-700 px-3 py-2 rounded-md text-sm">
+          {error}
+        </div>
+      )}
+    </div>
   )
 }
 

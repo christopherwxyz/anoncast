@@ -556,3 +556,11 @@ export type ValidateFrameResponse = {
   }
 }
 
+export interface UploadImageResponse {
+  success: boolean
+  status: number
+  data?: {
+    link: string
+  }
+  error?: string
+}

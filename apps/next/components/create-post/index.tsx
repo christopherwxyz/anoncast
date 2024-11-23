@@ -4,7 +4,7 @@ import { Textarea } from '../ui/textarea'
 import { CreatePostProvider, useCreatePost } from './context'
 import { Image, Link, Loader2, Quote, Reply, SquareSlash, X } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
-import { ReactNode, useRef, useState } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -286,26 +286,17 @@ function UploadImage() {
     setError(null)
 
     try {
-      const formData = new FormData()
-      formData.append('image', file, file.name)
+      const response = await api.uploadImage(file)
 
-      const response = await fetch('/api/upload-image', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Upload failed: ${response.status}`)
+      if (response.error) {
+        throw new Error(response.error.message)
       }
 
-      const data = await response.json()
-
-      if (!data.success || !data.data?.link) {
+      if (!response.data?.data?.link) {
         throw new Error('Invalid response format')
       }
 
-      setImage(data.data.link)
+      setImage(response.data.data.link)
       setError(null)
 
       if (fileInputRef.current) {

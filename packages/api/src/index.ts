@@ -3,6 +3,7 @@ import { createElysia } from './utils'
 import { feedRoutes } from './routes/feed'
 import { merkleTreeRoutes } from './routes/merkle-tree'
 import { getPostRoutes } from './routes/post'
+import { uploadRoutes } from './routes/upload'
 import { neynar } from './services/neynar'
 import { getProvingBackend, ProofType } from '@anon/utils/src/proofs'
 ;(async () => {
@@ -16,6 +17,7 @@ import { getProvingBackend, ProofType } from '@anon/utils/src/proofs'
     .use(feedRoutes)
     .use(merkleTreeRoutes)
     .use(postRoutes)
+    .use(uploadRoutes)
     .get(
       '/get-cast',
       async ({ query }) => {

@@ -31,19 +31,24 @@ export class ApiClient {
     endpoint: string,
     config: RequestConfig = {}
   ): Promise<ApiResponse<T>> {
-    const { headers = {}, ...options } = config
+    const { headers = {}, isFormData = false, ...options } = config
 
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
+    const defaultHeaders: Record<string, string> = {
       Accept: 'application/json',
+    }
+
+    if (!isFormData) {
+      defaultHeaders['Content-Type'] = 'application/json'
+    }
+
+    const finalHeaders = {
+      ...defaultHeaders,
+      ...headers,
     }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
-      headers: {
-        ...defaultHeaders,
-        ...headers,
-      },
+      headers: finalHeaders,
     })
 
     const result = await this.handleResponse<T>(response)

@@ -14,4 +14,5 @@ export type ApiResponse<T> =
 export type RequestConfig = {
   authenticated?: boolean
   headers?: Record<string, string>
+  isFormData?: boolean
 } & Omit<RequestInit, 'headers'>

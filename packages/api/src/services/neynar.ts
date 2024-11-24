@@ -1,9 +1,9 @@
-import { getPostMapping, getSignerForAddress } from '@anon/db'
+import { getSignerForAddress } from '@anon/db'
 import crypto from 'crypto'
 import { Redis } from 'ioredis'
-import { twitterClient } from './twitter'
 import {
   CreatePostParams,
+  DeleteParams,
   GetBulkCastsResponse,
   GetCastResponse,
   GetCastsResponse,
@@ -174,16 +174,10 @@ class NeynarService {
     return response
   }
 
-  async delete(params: SubmitHashParams) {
+  async delete(params: DeleteParams) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
     const cast = await this.getCast(params.hash)
     if (!cast.cast) {
-      return {
-        success: false,
-      }
-    }
-
-    if (new Date(cast.cast.timestamp).getTime() < Date.now() - 10800 * 1000) {
       return {
         success: false,
       }
@@ -196,11 +190,6 @@ class NeynarService {
         target_hash: params.hash,
       }),
     })
-
-    const postMapping = await getPostMapping(params.hash)
-    if (postMapping) {
-      await twitterClient.v2.deleteTweet(postMapping.tweetId)
-    }
 
     return {
       success: true,
@@ -247,7 +236,10 @@ class NeynarService {
 
     await redis.set(`post:hash:${duplicateHash}`, 'true', 'EX', 60 * 5)
 
-    return response
+    return {
+      success: true,
+      hash: response.cast.hash,
+    }
   }
 }
 

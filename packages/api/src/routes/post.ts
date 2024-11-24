@@ -4,7 +4,7 @@ import { ProofType, verifyProof } from '@anon/utils/src/proofs'
 import { zeroAddress } from 'viem'
 import { CreatePostParams, SubmitHashParams } from '../services/types'
 import { neynar } from '../services/neynar'
-import { promoteToTwitter } from '../services/twitter'
+import { promoteToTwitter, twitterClient } from '../services/twitter'
 import { createPostMapping, getPostMapping } from '@anon/db'
 import { getQueue, QueueName } from '@anon/queue/src/utils'
 import { Noir } from '@noir-lang/noir_js'
@@ -68,7 +68,23 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         const params = extractSubmitHashData(body.publicInputs)
 
         await validateRoot(ProofType.DELETE_POST, params.tokenAddress, params.root)
-        return await neynar.delete(params)
+
+        const postMapping = await getPostMapping(params.hash)
+        if (postMapping) {
+          if (postMapping.tweetId) {
+            await twitterClient.v2.deleteTweet(postMapping.tweetId)
+          }
+          if (postMapping.bestOfHash) {
+            await neynar.delete({
+              hash: postMapping.bestOfHash,
+              tokenAddress: params.tokenAddress,
+            })
+          }
+        }
+
+        return {
+          success: true,
+        }
       },
       {
         body: t.Object({
@@ -106,25 +122,19 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
           }
         }
 
-        const tweetId = await promoteToTwitter(cast.cast, body.args?.asReply)
-
-        if (!tweetId) {
-          return {
-            success: false,
-          }
-        }
-
-        await createPostMapping(params.hash, tweetId)
-
-        await neynar.postAsQuote({
+        const bestOfTweetId = await promoteToTwitter(cast.cast, body.args?.asReply)
+        const bestOfResponse = await neynar.postAsQuote({
           tokenAddress: params.tokenAddress,
           quoteFid: cast.cast.author.fid,
           quoteHash: cast.cast.hash,
         })
 
+        await createPostMapping(params.hash, bestOfTweetId, bestOfResponse.hash)
+
         return {
           success: true,
-          tweetId,
+          tweetId: bestOfTweetId,
+          bestOfHash: bestOfResponse.hash,
         }
       },
       {

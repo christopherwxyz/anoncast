@@ -16,6 +16,11 @@ export type SubmitHashParams = {
   tokenAddress: string
 }
 
+export type DeleteParams = {
+  hash: string
+  tokenAddress: string
+}
+
 export type QuoteCastParams = {
   tokenAddress: string
   quoteFid: number

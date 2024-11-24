@@ -9,5 +9,6 @@ export const signersTable = pgTable('signers', {
 
 export const postMappingTable = pgTable('post_mapping', {
   castHash: varchar({ length: 255 }).primaryKey(),
-  tweetId: varchar({ length: 255 }).notNull(),
+  tweetId: varchar({ length: 255 }),
+  bestOfHash: varchar({ length: 255 }),
 })

@@ -1,10 +1,7 @@
 {
   "name": "anon",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "build": "bun run --filter '**' build",
     "next:dev": "bun run --filter @anon/next dev",
@@ -18,6 +15,6 @@
     "queue:start:promote-post": "bun run --filter @anon/queue start promote-post",
     "queue:ui": "bun run --filter @anon/queue ui",
     "queue:process-failed": "bun run --filter @anon/queue process-failed",
-    "queue:process-failed:promote-post": "bun run --filter @anon/queue process-failed promote-post"
+    "queue:process-failed:promote-post": "bun run --filter @anon/queue process-failed:promote-post"
   }
 }

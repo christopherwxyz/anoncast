@@ -5,6 +5,7 @@ import {
   CreatePostParams,
   DeleteParams,
   GetBulkCastsResponse,
+  GetBulkUsersResponse,
   GetCastResponse,
   GetCastsResponse,
   GetChannelResponse,
@@ -114,7 +115,14 @@ class NeynarService {
     )
   }
 
-  async post(params: CreatePostParams) {
+  async post(params: {
+    tokenAddress: string
+    text: string
+    embeds: string[]
+    quote?: string
+    parent?: string
+    channel?: string
+  }) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
 
     const embeds: Array<{
@@ -240,6 +248,12 @@ class NeynarService {
       success: true,
       hash: response.cast.hash,
     }
+  }
+
+  async getBulkUsers(addresses: string[]) {
+    return this.makeRequest<GetBulkUsersResponse>(
+      `/farcaster/user/bulk-by-address?addresses=${addresses.join(',')}`
+    )
   }
 }
 

@@ -1,10 +1,10 @@
 /* eslint-disable jsx-a11y/alt-text */
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
-import { CreatePostProvider, useCreatePost } from './context'
+import { useCreatePost } from './context'
 import { Image, Link, Loader2, Quote, Reply, SquareSlash, X } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
-import { type ReactNode, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -17,78 +17,25 @@ import {
 
 import { Input } from '../ui/input'
 import { useQuery } from '@tanstack/react-query'
-import { useBalance } from '@/hooks/use-balance'
-import { TOKEN_CONFIG } from '@anon/utils/src/config'
-import { formatUnits } from 'viem'
-import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
 import Confetti from 'confetti-react'
+import { Checkbox } from '../ui/checkbox'
 
 const MAX_EMBEDS = 2
 
-export function CreatePost({
-  tokenAddress,
-  userAddress,
-  onSuccess,
-  getSignature,
-}: {
-  tokenAddress: string
-  userAddress: string
-  onSuccess?: () => void
-  getSignature: ({
-    address,
-    timestamp,
-  }: {
-    address: string
-    timestamp: number
-  }) => Promise<
-    | {
-        signature: string
-        message: string
-      }
-    | undefined
-  >
-}) {
-  const { data } = useBalance(tokenAddress, userAddress)
-
-  if (data === undefined) return null
-
-  const postAmount = TOKEN_CONFIG[tokenAddress].postAmount
-  const difference = BigInt(postAmount) - data
-
-  if (difference > 0)
-    return (
-      <a
-        href={`https://app.uniswap.org/swap?outputCurrency=${tokenAddress}&chain=base`}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex flex-row items-center justify-between gap-2">
-          <p className="font-bold">{`Not enough tokens to post. Buy ${formatUnits(
-            difference,
-            18
-          )} more.`}</p>
-        </div>
-      </a>
-    )
-
-  return (
-    <CreatePostProvider
-      tokenAddress={tokenAddress}
-      userAddress={userAddress}
-      onSuccess={onSuccess}
-      getSignature={getSignature}
-    >
-      <CreatePostForm />
-    </CreatePostProvider>
-  )
-}
-
-function CreatePostForm() {
-  const { text, setText, createPost, state, quote, embed, setEmbed, setQuote } =
-    useCreatePost()
-  const { toast } = useToast()
-  const [confetti, setConfetti] = useState(false)
+export function CreatePost() {
+  const {
+    text,
+    setText,
+    createPost,
+    state,
+    quote,
+    embed,
+    setEmbed,
+    setQuote,
+    confetti,
+    setConfetti,
+  } = useCreatePost()
 
   const length = new Blob([text ?? '']).size
 
@@ -121,9 +68,6 @@ function CreatePostForm() {
           }
         })
       }
-    } else {
-      // Clear quote if no Warpcast URLs
-      setQuote(null)
     }
     // Handle Twitter URLs
     if (twitterMatches.length > 0) {
@@ -133,18 +77,7 @@ function CreatePostForm() {
       if (!currentEmbed || currentEmbed !== twitterUrl) {
         setEmbed(twitterUrl)
       }
-    } else {
-      // Clear embed if no Twitter URLs
-      setEmbed(null)
     }
-  }
-
-  const handleCreatePost = async () => {
-    await createPost()
-    toast({
-      title: 'Post will be created in 1-2 minutes',
-    })
-    setConfetti(true)
   }
 
   return (
@@ -156,6 +89,7 @@ function CreatePostForm() {
         className="h-32 p-3 resize-none font-medium !text-base placeholder:text-zinc-400 bg-zinc-950 border border-zinc-700"
         placeholder="What's happening, anon?"
       />
+      <RevealPhrase />
       <RemoveableImage />
       <RemoveableEmbed />
       <RemoveableQuote />
@@ -170,7 +104,7 @@ function CreatePostForm() {
         <div className="flex flex-row items-center gap-4 sm: justify-between">
           <p className="font-medium text-zinc-400">{`${length} / 320`}</p>
           <Button
-            onClick={handleCreatePost}
+            onClick={createPost}
             className="font-bold text-md rounded-md hover:scale-105 transition-all duration-300"
             disabled={!['idle', 'success', 'error'].includes(state.status)}
           >
@@ -430,11 +364,6 @@ function RemoveableEmbed() {
       <div
         className="w-full border rounded-xl overflow-hidden cursor-pointer"
         onClick={() => window.open(embed, '_blank')}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            window.open(embed, '_blank')
-          }
-        }}
       >
         {image && (
           <img
@@ -526,14 +455,6 @@ function RemoveableParent() {
             '_blank'
           )
         }
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            window.open(
-              `https://warpcast.com/${parent.author.username}/${parent.hash}`,
-              '_blank'
-            )
-          }
-        }}
       >
         <p className="text-sm text-zinc-400">Replying to</p>
         {parent.author && (
@@ -705,14 +626,6 @@ function RemoveableQuote() {
             '_blank'
           )
         }
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            window.open(
-              `https://warpcast.com/${quote.author.username}/${quote.hash}`,
-              '_blank'
-            )
-          }
-        }}
       >
         <p className="text-sm text-zinc-400">Quoting</p>
         <div className="flex items-center gap-2">
@@ -733,6 +646,43 @@ function RemoveableQuote() {
       >
         <X />
       </Button>
+    </div>
+  )
+}
+
+function RevealPhrase() {
+  const [enabled, setEnabled] = useState(false)
+  const { revealPhrase, setRevealPhrase } = useCreatePost()
+
+  useEffect(() => {
+    if (!enabled) {
+      setRevealPhrase(null)
+    }
+  }, [enabled])
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div
+        className="flex flex-row items-center gap-2 cursor-pointer"
+        onClick={() => setEnabled(!enabled)}
+      >
+        <Checkbox checked={enabled} />
+        <p className="text-sm">Reveal yourself at a later date</p>
+      </div>
+      {enabled && (
+        <div className="flex flex-col gap-4">
+          <p className="text-gray-400">
+            Enter a complex secret phrase you&apos;ll remember. Use it later to reveal
+            yourself.
+          </p>
+          <Input
+            value={revealPhrase ?? ''}
+            onChange={(e) => setRevealPhrase(e.target.value)}
+            placeholder="a phrase that's hard to guess"
+            className="bg-[#0D0D0D]"
+          />
+        </div>
+      )}
     </div>
   )
 }

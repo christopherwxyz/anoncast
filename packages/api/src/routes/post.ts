@@ -1,14 +1,21 @@
 import { createElysia } from '../utils'
 import { t } from 'elysia'
 import { ProofType, verifyProof } from '@anon/utils/src/proofs'
-import { zeroAddress } from 'viem'
+import { verifyMessage, zeroAddress } from 'viem'
 import { CreatePostParams, SubmitHashParams } from '../services/types'
 import { neynar } from '../services/neynar'
 import { promoteToTwitter, twitterClient } from '../services/twitter'
-import { createPostMapping, getPostMapping } from '@anon/db'
+import {
+  createPostMapping,
+  createPostReveal,
+  deletePostMapping,
+  getPostMapping,
+  markPostReveal,
+} from '@anon/db'
 import { getQueue, QueueName } from '@anon/queue/src/utils'
 import { Noir } from '@noir-lang/noir_js'
 import { getValidRoots } from '@anon/utils/src/merkle-tree'
+import { augmentCasts } from './feed'
 
 export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) {
   return createElysia({ prefix: '/posts' })
@@ -45,7 +52,16 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
 
         await validateRoot(ProofType.CREATE_POST, params.tokenAddress, params.root)
 
-        return await neynar.post(params)
+        const result = await neynar.post(params)
+
+        if (BigInt(params.revealHash) != BigInt(0) && 'cast' in result) {
+          await createPostReveal(
+            result.cast.hash.toLowerCase(),
+            params.revealHash.toLowerCase()
+          )
+        }
+
+        return result
       },
       {
         body: t.Object({
@@ -82,6 +98,8 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
           }
         }
 
+        await deletePostMapping(params.hash)
+
         return {
           success: true,
         }
@@ -108,13 +126,6 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
 
         await validateRoot(ProofType.PROMOTE_POST, params.tokenAddress, params.root)
 
-        const mapping = await getPostMapping(params.hash)
-        if (mapping?.tweetId) {
-          return {
-            success: true,
-          }
-        }
-
         const cast = await neynar.getCast(params.hash)
         if (!cast.cast) {
           return {
@@ -122,7 +133,23 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
           }
         }
 
-        const bestOfTweetId = await promoteToTwitter(cast.cast, body.args?.asReply)
+        const mapping = await getPostMapping(params.hash)
+        if (mapping?.tweetId) {
+          return {
+            success: true,
+          }
+        }
+
+        const parentMapping = cast.cast.parent_hash
+          ? await getPostMapping(cast.cast.parent_hash)
+          : undefined
+
+        const bestOfTweetId = await promoteToTwitter(
+          cast.cast,
+          parentMapping?.tweetId || undefined,
+          body.args?.asReply
+        )
+
         const bestOfResponse = await neynar.postAsQuote({
           tokenAddress: params.tokenAddress,
           quoteFid: cast.cast.author.fid,
@@ -146,6 +173,71 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
               asReply: t.Boolean(),
             })
           ),
+        }),
+      }
+    )
+    .post(
+      '/reveal',
+      async ({ body }) => {
+        const isValidSignature = await verifyMessage({
+          message: body.message,
+          signature: body.signature as `0x${string}`,
+          address: body.address as `0x${string}`,
+        })
+        if (!isValidSignature) {
+          return {
+            success: false,
+          }
+        }
+
+        const address = body.address.toLowerCase()
+        const users = await neynar.getBulkUsers([address])
+
+        await markPostReveal(
+          body.castHash,
+          body.revealPhrase,
+          body.signature,
+          body.address
+        )
+
+        const username = users?.[address]?.[0]?.username
+
+        await neynar.post({
+          text: `REVEALED: Posted by ${username ? `@${username}` : `${address}`}`,
+          embeds: [`https://anoncast.org/posts/${body.castHash}`],
+          quote: body.castHash,
+          tokenAddress: body.tokenAddress,
+        })
+
+        return {
+          success: true,
+        }
+      },
+      {
+        body: t.Object({
+          castHash: t.String(),
+          message: t.String(),
+          revealPhrase: t.String(),
+          signature: t.String(),
+          address: t.String(),
+          tokenAddress: t.String(),
+        }),
+      }
+    )
+    .get(
+      '/:hash',
+      async ({ params, error }) => {
+        const cast = await neynar.getCast(params.hash)
+        if (!cast?.cast) {
+          return error(404, 'Cast not found')
+        }
+
+        const revealedCast = await augmentCasts([cast.cast])
+        return revealedCast[0]
+      },
+      {
+        params: t.Object({
+          hash: t.String(),
         }),
       }
     )
@@ -191,6 +283,13 @@ function extractCreatePostData(data: number[][]): CreatePostParams {
   const parentArray = data[3 + 48 + 2]
   const parent = `0x${Buffer.from(parentArray).toString('hex').slice(-40)}`
 
+  const revealHashArray = data.slice(3 + 48 + 3, 3 + 48 + 3 + 2)
+  // @ts-ignore
+  const revealHashHexes = revealHashArray.map((b) =>
+    Buffer.from(b).toString('hex').slice(-32)
+  )
+  const revealHash = `0x${revealHashHexes.join('')}`
+
   return {
     timestamp,
     root: root as string,
@@ -200,6 +299,7 @@ function extractCreatePostData(data: number[][]): CreatePostParams {
     channel,
     parent: parent === zeroAddress ? '' : parent,
     tokenAddress: tokenAddress as string,
+    revealHash,
   }
 }
 

@@ -1,8 +1,10 @@
+import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
 import { Cast, Channel } from '@/lib/types'
 import { generateProof, ProofType } from '@anon/utils/src/proofs'
 import { createContext, useContext, useState, ReactNode } from 'react'
 import { hashMessage } from 'viem'
+import { useAccount, useSignMessage } from 'wagmi'
 
 type State =
   | {
@@ -29,30 +31,19 @@ interface CreatePostContextProps {
   createPost: () => Promise<void>
   embedCount: number
   state: State
+  confetti: boolean
+  setConfetti: (confetti: boolean) => void
+  revealPhrase: string | null
+  setRevealPhrase: (revealPhrase: string | null) => void
 }
 
 const CreatePostContext = createContext<CreatePostContextProps | undefined>(undefined)
 
 export const CreatePostProvider = ({
   tokenAddress,
-  userAddress,
-  onSuccess,
-  getSignature,
   children,
 }: {
   tokenAddress: string
-  userAddress: string
-  onSuccess?: () => void
-  getSignature: ({
-    address,
-    timestamp,
-  }: { address: string; timestamp: number }) => Promise<
-    | {
-        signature: string
-        message: string
-      }
-    | undefined
-  >
   children: ReactNode
 }) => {
   const [text, setText] = useState<string | null>(null)
@@ -61,7 +52,12 @@ export const CreatePostProvider = ({
   const [quote, setQuote] = useState<Cast | null>(null)
   const [channel, setChannel] = useState<Channel | null>(null)
   const [parent, setParent] = useState<Cast | null>(null)
+  const [revealPhrase, setRevealPhrase] = useState<string | null>(null)
   const [state, setState] = useState<State>({ status: 'idle' })
+  const [confetti, setConfetti] = useState(false)
+  const { toast } = useToast()
+  const { address } = useAccount()
+  const { signMessageAsync } = useSignMessage()
 
   const resetState = () => {
     setState({ status: 'idle' })
@@ -71,41 +67,50 @@ export const CreatePostProvider = ({
     setQuote(null)
     setChannel(null)
     setParent(null)
+    setRevealPhrase(null)
   }
 
   const createPost = async () => {
-    if (!userAddress) return
-
+    if (!address) return
     setState({ status: 'signature' })
     try {
       const embeds = [image, embed].filter((e) => e !== null) as string[]
-      const timestamp = Math.floor(Date.now() / 1000)
-      const signatureData = await getSignature({
-        address: userAddress,
-        timestamp,
+      const input = {
+        text,
+        embeds,
+        quote: quote?.hash ?? null,
+        channel: channel?.id ?? null,
+        parent: parent?.hash ?? null,
+      }
+
+      const message = JSON.stringify(input)
+      const signature = await signMessageAsync({
+        message,
       })
-      if (!signatureData) {
+      if (!signature) {
         setState({ status: 'error', error: 'Failed to get signature' })
         return
       }
+
+      const messageHash = hashMessage(message)
+      const revealHash = revealPhrase ? hashMessage(message + revealPhrase) : null
+
+      const timestamp = Math.floor(Date.now() / 1000)
 
       setState({ status: 'generating' })
 
       const proof = await generateProof({
         tokenAddress,
-        userAddress,
+        userAddress: address,
         proofType: ProofType.CREATE_POST,
         signature: {
           timestamp,
-          signature: signatureData.signature,
-          messageHash: hashMessage(signatureData.message),
+          signature,
+          messageHash,
         },
         input: {
-          text,
-          embeds,
-          quote: quote?.hash ?? null,
-          channel: channel?.id ?? null,
-          parent: parent?.hash ?? null,
+          ...input,
+          revealHash,
         },
       })
       if (!proof) {
@@ -128,8 +133,10 @@ export const CreatePostProvider = ({
       }
 
       resetState()
-
-      onSuccess?.()
+      setConfetti(true)
+      toast({
+        title: 'Post will be created in 1-2 minutes',
+      })
     } catch (e) {
       setState({ status: 'error', error: 'Failed to post' })
       console.error(e)
@@ -156,6 +163,10 @@ export const CreatePostProvider = ({
         embedCount,
         createPost,
         state,
+        confetti,
+        setConfetti,
+        revealPhrase,
+        setRevealPhrase,
       }}
     >
       {children}

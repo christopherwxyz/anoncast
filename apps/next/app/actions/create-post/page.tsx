@@ -62,7 +62,7 @@ export default function CreatePostPage({
   return (
     <div className="flex h-screen w-screen flex-col p-4 max-w-screen-sm mx-auto gap-8">
       <div className="flex items-center justify-between">
-        <div className="text-3xl font-bold">$ANON</div>
+        <div className="text-3xl font-bold">anoncast</div>
       </div>
       <Alert>
         <CircleHelp className="h-4 w-4" />
@@ -81,34 +81,6 @@ export default function CreatePostPage({
           </div>
         </div>
       </a>
-      {/* {data && (
-        <CreatePost
-          tokenAddress={ANON_ADDRESS}
-          userAddress={data}
-          onSuccess={() => {
-            window.parent.postMessage(
-              {
-                type: 'createCast',
-                data: {
-                  cast: {
-                    text: 'Posted to @anoncast, you can close this screen.',
-                    embeds: [],
-                  },
-                },
-              },
-              '*'
-            )
-          }}
-          getSignature={() => Promise.resolve(searchParams.data)}
-        />
-      )}
-      {!data && !isLoading && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex flex-row items-center justify-between gap-2">
-          <p className="font-bold">
-            You don&apos;t have an address connected to your Farcaster account.
-          </p>
-        </div>
-      )} */}
     </div>
   )
 }

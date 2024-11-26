@@ -8,7 +8,7 @@ import type {
   UploadImageResponse,
 } from '../types'
 import { ApiClient } from './client'
-import { Identity } from '@anon/api/src/services/types'
+import type { Identity } from '@anon/api/src/services/types'
 
 const apiClient = new ApiClient(process.env.NEXT_PUBLIC_API_URL || '')
 
@@ -36,7 +36,7 @@ export const api = {
     type: ProofType,
     proof: number[],
     publicInputs: number[][],
-    args: { asReply?: boolean }
+    args: { asReply?: boolean, asLaunch?: boolean }
   ) => {
     await apiClient.request(`/posts/submit`, {
       method: 'POST',
@@ -60,7 +60,7 @@ export const api = {
   promotePost: async (
     proof: number[],
     publicInputs: number[][],
-    args: { asReply?: boolean }
+    args: { asReply?: boolean; asLaunch?: boolean }
   ) => {
     const response = await apiClient.request<
       { success: false } | { success: true; tweetId: string }

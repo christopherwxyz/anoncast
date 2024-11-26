@@ -6,6 +6,7 @@ import { CreatePostParams, SubmitHashParams } from '../services/types'
 import { neynar } from '../services/neynar'
 import { promoteToTwitter, twitterClient } from '../services/twitter'
 import {
+  createLaunchMapping,
   createPostMapping,
   createPostReveal,
   deletePostMapping,
@@ -157,6 +158,7 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         })
 
         await createPostMapping(params.hash, bestOfTweetId, bestOfResponse.hash)
+        await createLaunchMapping(params.hash, bestOfTweetId)
 
         return {
           success: true,

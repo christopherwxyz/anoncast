@@ -125,6 +125,9 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
 
         const params = extractSubmitHashData(body.publicInputs)
 
+        // TODO: Need to implement launch mapping for existing casts
+        const isLaunch = body.args?.asLaunch
+
         await validateRoot(ProofType.PROMOTE_POST, params.tokenAddress, params.root)
 
         const cast = await neynar.getCast(params.hash)
@@ -158,7 +161,11 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         })
 
         await createPostMapping(params.hash, bestOfTweetId, bestOfResponse.hash)
-        await createLaunchMapping(params.hash, bestOfTweetId)
+
+        // If the post is a launch, create a mapping for it
+        if (isLaunch) {
+          await createLaunchMapping(params.hash, bestOfTweetId)
+        }
 
         return {
           success: true,
@@ -173,6 +180,7 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
           args: t.Optional(
             t.Object({
               asReply: t.Boolean(),
+              asLaunch: t.Boolean(),
             })
           ),
         }),

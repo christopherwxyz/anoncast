@@ -35,6 +35,8 @@ export function CreatePost({ variant = 'post' }: { variant?: 'post' | 'launch' }
     setQuote,
     confetti,
     setConfetti,
+    launch,
+    setLaunch,
   } = useCreatePost()
 
   const length = new Blob([text ?? '']).size
@@ -80,6 +82,15 @@ export function CreatePost({ variant = 'post' }: { variant?: 'post' | 'launch' }
     }
   }
 
+  // Set launch state
+  useEffect(() => {
+    if (variant === 'launch') {
+      setLaunch(true)
+    } else {
+      setLaunch(false)
+    }
+  }, [variant, setLaunch])
+
   return (
     <div className="flex flex-col gap-4">
       <RemoveableParent />
@@ -87,7 +98,11 @@ export function CreatePost({ variant = 'post' }: { variant?: 'post' | 'launch' }
         value={text ?? ''}
         onChange={handleSetText}
         className="h-32 p-3 resize-none font-medium !text-base placeholder:text-zinc-400 bg-zinc-950 border border-zinc-700"
-        placeholder={variant === 'post' ? "What's happening, anon?" : "Hey @clanker please launch a coin called \"Hello\" with the ticker $HI! I want this image..."}
+        placeholder={
+          variant === 'post'
+            ? "What's happening, anon?"
+            : 'Hey @clanker please launch a coin called "Hello" with the ticker $HI! I want this image...'
+        }
       />
       <RevealPhrase />
       <RemoveableImage />

@@ -6,27 +6,33 @@ export const TOKEN_CONFIG: Record<
   {
     ticker: string
     postAmount: string
+    launchAmount: string
     promoteAmount: string
     deleteAmount: string
     farcasterUsername: string
     fid: number
+    launchFid: number
   }
 > = {
   [ANON_ADDRESS]: {
     ticker: 'ANON',
     postAmount: '5000000000000000000000',
+    launchAmount: '1000000000000000000000000',
     promoteAmount: '2000000000000000000000000',
     deleteAmount: '2000000000000000000000000',
     farcasterUsername: 'anoncast',
     fid: 880094,
+    launchFid: 883713,
   },
   [COMMENT_ADDRESS]: {
     ticker: 'COMMENT',
     postAmount: '1',
+    launchAmount: '1',
     promoteAmount: '1',
     deleteAmount: '1',
     farcasterUsername: 'comment',
     fid: 880094,
+    launchFid: 883713,
   },
 }
 

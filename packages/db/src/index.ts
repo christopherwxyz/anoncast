@@ -1,11 +1,6 @@
 import 'dotenv/config'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import {
-  launchMappingTable,
-  postMappingTable,
-  postRevealTable,
-  signersTable,
-} from './db/schema'
+import { postMappingTable, postRevealTable, signersTable } from './db/schema'
 import { eq, inArray } from 'drizzle-orm'
 
 const db = drizzle(process.env.DATABASE_URL as string)
@@ -28,14 +23,22 @@ export async function createSignerForAddress(address: string, signerUuid: string
   return user
 }
 
-export async function createPostMapping(
-  castHash: string,
-  tweetId?: string,
+export async function createPostMapping({
+  castHash,
+  tweetId,
+  bestOfHash,
+  launchTweetId,
+  launchHash,
+}: {
+  castHash: string
+  tweetId?: string
   bestOfHash?: string
-) {
+  launchTweetId?: string
+  launchHash?: string
+}) {
   await db
     .insert(postMappingTable)
-    .values({ castHash, tweetId, bestOfHash })
+    .values({ castHash, tweetId, bestOfHash, launchTweetId, launchHash })
     .onConflictDoNothing()
 }
 
@@ -91,17 +94,4 @@ export async function getPostReveals(castHashes: string[]) {
     .from(postRevealTable)
     .where(inArray(postRevealTable.castHash, castHashes))
   return rows
-}
-
-export async function createLaunchMapping(castHash: string, tweetId?: string) {
-  await db.insert(launchMappingTable).values({ castHash, tweetId }).onConflictDoNothing()
-}
-
-export async function getLaunchMappping(castHash: string) {
-  const [row] = await db
-    .select()
-    .from(launchMappingTable)
-    .where(eq(launchMappingTable.castHash, castHash))
-    .limit(1)
-  return row
 }

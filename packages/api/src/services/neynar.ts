@@ -115,6 +115,12 @@ class NeynarService {
     )
   }
 
+  async searchCasts(fid: number, q: string) {
+    return this.makeRequest<GetBulkCastsResponse>(
+      `/farcaster/cast/search?q=${q}&author_fid=${fid}&priority_mode=false&limit=100`
+    )
+  }
+
   async post(params: {
     tokenAddress: string
     text: string
@@ -122,8 +128,12 @@ class NeynarService {
     quote?: string
     parent?: string
     channel?: string
+    launchSigner?: boolean
   }) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
+    if (!signerUuid) {
+      throw new Error('No signer found for address')
+    }
 
     const embeds: Array<{
       url?: string
@@ -149,7 +159,9 @@ class NeynarService {
     }
 
     const body = {
-      signer_uuid: signerUuid.signerUuid,
+      signer_uuid: params.launchSigner
+        ? signerUuid.launchSignerUuid
+        : signerUuid.signerUuid,
       parent: params.parent,
       parent_author_fid: parentAuthorFid,
       text: params.text,
@@ -184,6 +196,10 @@ class NeynarService {
 
   async delete(params: DeleteParams) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
+    if (!signerUuid) {
+      throw new Error('No signer found for address')
+    }
+
     const cast = await this.getCast(params.hash)
     if (!cast.cast) {
       return {
@@ -206,6 +222,9 @@ class NeynarService {
 
   async postAsQuote(params: QuoteCastParams) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
+    if (!signerUuid) {
+      throw new Error('No signer found for address')
+    }
 
     const body = {
       signer_uuid: signerUuid.bestOfSignerUuid,

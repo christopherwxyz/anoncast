@@ -1,4 +1,4 @@
-import { QueueName, getWorker, getQueue } from './utils'
+import { QueueName, getWorker } from './utils'
 import { handler } from './handler'
 import { Redis } from 'ioredis'
 import { ProofType } from '@anon/utils/src/proofs'

@@ -25,6 +25,18 @@ export const api = {
     )
     return response.data
   },
+  getNewLaunches: async (tokenAddress: string) => {
+    const response = await apiClient.request<GetCastsResponse>(
+      `/feed/${tokenAddress}/launches/new`
+    )
+    return response.data
+  },
+  getPromotedLaunches: async (tokenAddress: string) => {
+    const response = await apiClient.request<GetCastsResponse>(
+      `/feed/${tokenAddress}/launches/promoted`
+    )
+    return response.data
+  },
   getMerkleTree: async (tokenAddress: string, proofType: ProofType) => {
     const response = await apiClient.request<Tree>(`/merkle-tree`, {
       method: 'POST',
@@ -36,7 +48,7 @@ export const api = {
     type: ProofType,
     proof: number[],
     publicInputs: number[][],
-    args: { asReply?: boolean, asLaunch?: boolean }
+    args: { asReply?: boolean; asLaunch?: boolean }
   ) => {
     await apiClient.request(`/posts/submit`, {
       method: 'POST',
@@ -67,6 +79,13 @@ export const api = {
     >(`/posts/promote`, {
       method: 'POST',
       body: JSON.stringify({ proof, publicInputs, args }),
+    })
+    return response.data
+  },
+  launchPost: async (proof: number[], publicInputs: number[][]) => {
+    const response = await apiClient.request<PostCastResponse>(`/posts/launch`, {
+      method: 'POST',
+      body: JSON.stringify({ proof, publicInputs }),
     })
     return response.data
   },

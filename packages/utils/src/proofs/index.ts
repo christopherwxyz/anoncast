@@ -18,6 +18,7 @@ export enum ProofType {
   CREATE_POST,
   DELETE_POST,
   PROMOTE_POST,
+  LAUNCH_POST,
 }
 
 interface SignatureArgs {

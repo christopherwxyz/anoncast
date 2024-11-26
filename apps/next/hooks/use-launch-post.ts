@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { hashMessage } from 'viem'
 import { useAccount, useSignMessage } from 'wagmi'
 
-type PromoteState =
+type LaunchState =
   | {
       status: 'idle' | 'signature' | 'generating' | 'done'
     }
@@ -13,8 +13,8 @@ type PromoteState =
       error: string
     }
 
-export const usePromotePost = (tokenAddress: string) => {
-  const [promoteState, setPromoteState] = useState<PromoteState>({ status: 'idle' })
+export const useLaunchPost = (tokenAddress: string) => {
+  const [launchState, setLaunchState] = useState<LaunchState>({ status: 'idle' })
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
 
@@ -36,10 +36,10 @@ export const usePromotePost = (tokenAddress: string) => {
     }
   }
 
-  const promotePost = async (hash: string, asReply?: boolean) => {
+  const launchPost = async (hash: string, asReply?: boolean) => {
     if (!address) return
 
-    setPromoteState({ status: 'signature' })
+    setLaunchState({ status: 'signature' })
     try {
       const timestamp = Math.floor(Date.now() / 1000)
       const signatureData = await getSignature({
@@ -47,16 +47,16 @@ export const usePromotePost = (tokenAddress: string) => {
         timestamp,
       })
       if (!signatureData) {
-        setPromoteState({ status: 'error', error: 'Failed to get signature' })
+        setLaunchState({ status: 'error', error: 'Failed to get signature' })
         return
       }
 
-      setPromoteState({ status: 'generating' })
+      setLaunchState({ status: 'generating' })
 
       const proof = await generateProof({
         tokenAddress,
         userAddress: address,
-        proofType: ProofType.PROMOTE_POST,
+        proofType: ProofType.LAUNCH_POST,
         signature: {
           timestamp,
           signature: signatureData.signature,
@@ -67,34 +67,33 @@ export const usePromotePost = (tokenAddress: string) => {
         },
       })
       if (!proof) {
-        setPromoteState({ status: 'error', error: 'Not allowed to delete' })
+        setLaunchState({ status: 'error', error: 'Not allowed to launch' })
         return
       }
 
       if (process.env.NEXT_PUBLIC_DISABLE_QUEUE) {
-        await api.promotePost(
+        await api.launchPost(
           Array.from(proof.proof),
-          proof.publicInputs.map((i) => Array.from(i)),
-          { asReply }
+          proof.publicInputs.map((i) => Array.from(i))
         )
       } else {
         await api.submitAction(
-          ProofType.PROMOTE_POST,
+          ProofType.LAUNCH_POST,
           Array.from(proof.proof),
           proof.publicInputs.map((i) => Array.from(i)),
-          { asReply }
+          {}
         )
       }
 
-      setPromoteState({ status: 'idle' })
+      setLaunchState({ status: 'idle' })
     } catch (e) {
-      setPromoteState({ status: 'error', error: 'Failed to promote' })
+      setLaunchState({ status: 'error', error: 'Failed to launch' })
       console.error(e)
     }
   }
 
   return {
-    promotePost,
-    promoteState,
+    launchPost,
+    launchState,
   }
 }

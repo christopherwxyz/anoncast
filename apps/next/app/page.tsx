@@ -4,22 +4,22 @@ import ActionComponent from '@/components/action'
 import { PostFeed, PromotedFeed } from '@/components/post-feed'
 import { ANON_ADDRESS } from '@anon/utils/src/config'
 import AnimatedTabs from '@/components/post-feed/animated-tabs'
-import { useState } from 'react'
+import { useCreatePost } from '@/components/create-post/context'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'anoncast' | 'anonfun'>('anoncast')
+  const { variant, setVariant } = useCreatePost()
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
         <AnimatedTabs
           tabs={['anoncast', { id: 'anonfun', badge: 'NEW' }]}
-          activeTab={activeTab}
-          onTabChange={(tab) => setActiveTab(tab as 'anoncast' | 'anonfun')}
+          activeTab={variant}
+          onTabChange={(tab) => setVariant(tab as 'anoncast' | 'anonfun')}
           layoutId="main-tabs"
         />
 
-        {activeTab === 'anoncast' ? (
+        {variant === 'anoncast' ? (
           <ActionComponent tokenAddress={ANON_ADDRESS} variant="post" />
         ) : (
           <ActionComponent
@@ -34,8 +34,8 @@ export default function Home() {
           />
         )}
       </div>
-      {activeTab === 'anoncast' && <PostFeed tokenAddress={ANON_ADDRESS} />}
-      {activeTab === 'anonfun' && <PromotedFeed tokenAddress={ANON_ADDRESS} />}
+      {variant === 'anoncast' && <PostFeed tokenAddress={ANON_ADDRESS} />}
+      {variant === 'anonfun' && <PromotedFeed tokenAddress={ANON_ADDRESS} />}
     </div>
   )
 }

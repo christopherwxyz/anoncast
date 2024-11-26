@@ -35,6 +35,8 @@ interface CreatePostContextProps {
   setConfetti: (confetti: boolean) => void
   revealPhrase: string | null
   setRevealPhrase: (revealPhrase: string | null) => void
+  variant: 'anoncast' | 'anonfun'
+  setVariant: (variant: 'anoncast' | 'anonfun') => void
 }
 
 const CreatePostContext = createContext<CreatePostContextProps | undefined>(undefined)
@@ -58,6 +60,7 @@ export const CreatePostProvider = ({
   const { toast } = useToast()
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
+  const [variant, setVariant] = useState<'anoncast' | 'anonfun'>('anoncast')
 
   const resetState = () => {
     setState({ status: 'idle' })
@@ -167,6 +170,8 @@ export const CreatePostProvider = ({
         setConfetti,
         revealPhrase,
         setRevealPhrase,
+        variant,
+        setVariant,
       }}
     >
       {children}

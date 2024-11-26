@@ -210,7 +210,7 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         }
 
         const parentHash = cast.cast.parent_hash
-        const channelId = cast.cast.channel.id
+        const channelId = cast.cast.channel?.id
         const embeds: string[] = []
         let quoteHash: string | undefined
         for (const embed of cast.cast.embeds || []) {

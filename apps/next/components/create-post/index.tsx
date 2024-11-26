@@ -23,7 +23,7 @@ import { Checkbox } from '../ui/checkbox'
 
 const MAX_EMBEDS = 2
 
-export function CreatePost({ variant = 'post' }: { variant?: 'post' | 'launch' }) {
+export function CreatePost({ variant }: { variant: 'post' | 'launch' }) {
   const {
     text,
     setText,
@@ -35,8 +35,6 @@ export function CreatePost({ variant = 'post' }: { variant?: 'post' | 'launch' }
     setQuote,
     confetti,
     setConfetti,
-    launch,
-    setLaunch,
   } = useCreatePost()
 
   const length = new Blob([text ?? '']).size
@@ -81,15 +79,6 @@ export function CreatePost({ variant = 'post' }: { variant?: 'post' | 'launch' }
       }
     }
   }
-
-  // Set launch state
-  useEffect(() => {
-    if (variant === 'launch') {
-      setLaunch(true)
-    } else {
-      setLaunch(false)
-    }
-  }, [variant, setLaunch])
 
   return (
     <div className="flex flex-col gap-4">

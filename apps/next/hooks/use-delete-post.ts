@@ -1,5 +1,5 @@
 import { api } from '@/lib/api'
-import { generateProof, ProofType } from '@anon/utils/src/proofs'
+import { generateProof, ProofType } from '@anon/utils/src/proofs/generate'
 import { useState } from 'react'
 import { hashMessage } from 'viem'
 import { useAccount, useSignMessage } from 'wagmi'
@@ -79,13 +79,13 @@ export const useDeletePost = (tokenAddress: string) => {
       if (process.env.NEXT_PUBLIC_DISABLE_QUEUE) {
         await api.deletePost(
           Array.from(proof.proof),
-          proof.publicInputs.map((i) => Array.from(i))
+          proof.publicInputs.map((input) => Array.from(input))
         )
       } else {
         await api.submitAction(
           ProofType.DELETE_POST,
           Array.from(proof.proof),
-          proof.publicInputs.map((i) => Array.from(i)),
+          proof.publicInputs.map((input) => Array.from(input)),
           {}
         )
       }

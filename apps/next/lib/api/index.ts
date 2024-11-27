@@ -1,4 +1,4 @@
-import type { ProofType, Tree } from '@anon/utils/src/proofs'
+import type { ProofType, Tree } from '@anon/utils/src/proofs/generate'
 import type {
   Cast,
   Channel,
@@ -22,6 +22,18 @@ export const api = {
   getTrendingPosts: async (tokenAddress: string) => {
     const response = await apiClient.request<GetCastsResponse>(
       `/feed/${tokenAddress}/trending`
+    )
+    return response.data
+  },
+  getNewLaunches: async (tokenAddress: string) => {
+    const response = await apiClient.request<GetCastsResponse>(
+      `/feed/${tokenAddress}/launches/new`
+    )
+    return response.data
+  },
+  getPromotedLaunches: async (tokenAddress: string) => {
+    const response = await apiClient.request<GetCastsResponse>(
+      `/feed/${tokenAddress}/launches/promoted`
     )
     return response.data
   },
@@ -67,6 +79,13 @@ export const api = {
     >(`/posts/promote`, {
       method: 'POST',
       body: JSON.stringify({ proof, publicInputs, args }),
+    })
+    return response.data
+  },
+  launchPost: async (proof: number[], publicInputs: number[][]) => {
+    const response = await apiClient.request<PostCastResponse>(`/posts/launch`, {
+      method: 'POST',
+      body: JSON.stringify({ proof, publicInputs }),
     })
     return response.data
   },

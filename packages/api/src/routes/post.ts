@@ -1,6 +1,6 @@
 import { createElysia } from '../utils'
 import { t } from 'elysia'
-import { ProofType, verifyProof } from '@anon/utils/src/proofs'
+import { ProofType } from '@anon/utils/src/proofs/generate'
 import { verifyMessage, zeroAddress } from 'viem'
 import { CreatePostParams, SubmitHashParams } from '../services/types'
 import { neynar } from '../services/neynar'
@@ -154,13 +154,40 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
           body.args?.asReply
         )
 
-        const bestOfResponse = await neynar.postAsQuote({
+        const parentHash = cast.cast.parent_hash
+        const channelId = cast.cast.channel?.id
+        const embeds: string[] = []
+        let quoteHash: string | undefined
+        for (const embed of cast.cast.embeds || []) {
+          if (embed.url) {
+            embeds.push(embed.url)
+          } else if (embed.cast) {
+            quoteHash = embed.cast.hash
+          }
+        }
+
+        const bestOfResponse = await neynar.post({
           tokenAddress: params.tokenAddress,
-          quoteFid: cast.cast.author.fid,
-          quoteHash: cast.cast.hash,
+          text: cast.cast.text,
+          embeds,
+          quote: quoteHash,
+          parent: parentHash,
+          channel: channelId,
+          bestOfSigner: true,
         })
 
-        await createPostMapping(params.hash, bestOfTweetId, bestOfResponse.hash)
+        if ('cast' in bestOfResponse) {
+          await createPostMapping({
+            castHash: params.hash,
+            tweetId: bestOfTweetId,
+            bestOfHash: bestOfResponse.cast.hash,
+          })
+          return {
+            success: true,
+            tweetId: bestOfTweetId,
+            bestOfHash: bestOfResponse.cast.hash,
+          }
+        }
 
         // If the post is a launch, create a mapping for it
         if (isLaunch) {
@@ -168,9 +195,7 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
         }
 
         return {
-          success: true,
-          tweetId: bestOfTweetId,
-          bestOfHash: bestOfResponse.hash,
+          success: false,
         }
       },
       {
@@ -179,10 +204,86 @@ export function getPostRoutes(createPostBackend: Noir, submitHashBackend: Noir) 
           publicInputs: t.Array(t.Array(t.Number())),
           args: t.Optional(
             t.Object({
+<<<<<<< HEAD
               asReply: t.Boolean(),
               asLaunch: t.Boolean(),
+=======
+              asReply: t.Optional(t.Boolean()),
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
             })
           ),
+        }),
+      }
+    )
+    .post(
+      '/launch',
+      async ({ body, submitHashBackend }) => {
+        const isValid = await submitHashBackend.verifyFinalProof({
+          proof: new Uint8Array(body.proof),
+          publicInputs: body.publicInputs.map((i) => new Uint8Array(i)),
+        })
+        if (!isValid) {
+          throw new Error('Invalid proof')
+        }
+
+        const params = extractSubmitHashData(body.publicInputs)
+
+        await validateRoot(ProofType.LAUNCH_POST, params.tokenAddress, params.root)
+
+        const cast = await neynar.getCast(params.hash)
+        if (!cast.cast) {
+          return {
+            success: false,
+          }
+        }
+
+        const mapping = await getPostMapping(params.hash)
+        if (mapping?.launchHash) {
+          return {
+            success: true,
+          }
+        }
+
+        const parentHash = cast.cast.parent_hash
+        const channelId = cast.cast.channel?.id
+        const embeds: string[] = []
+        let quoteHash: string | undefined
+        for (const embed of cast.cast.embeds || []) {
+          if (embed.url) {
+            embeds.push(embed.url)
+          } else if (embed.cast) {
+            quoteHash = embed.cast.hash
+          }
+        }
+
+        const launchResponse = await neynar.post({
+          tokenAddress: params.tokenAddress,
+          text: cast.cast.text,
+          embeds,
+          quote: quoteHash,
+          parent: parentHash,
+          channel: channelId,
+          launchSigner: true,
+        })
+        if (!launchResponse.success) {
+          return {
+            success: false,
+          }
+        }
+
+        if ('cast' in launchResponse) {
+          await createPostMapping({
+            castHash: params.hash,
+            launchHash: launchResponse.cast.hash,
+          })
+        }
+
+        return launchResponse
+      },
+      {
+        body: t.Object({
+          proof: t.Array(t.Number()),
+          publicInputs: t.Array(t.Array(t.Number())),
         }),
       }
     )

@@ -23,7 +23,11 @@ import { Checkbox } from '../ui/checkbox'
 
 const MAX_EMBEDS = 2
 
+<<<<<<< HEAD
 export function CreatePost({ variant = 'post' }: { variant?: 'post' | 'launch' }) {
+=======
+export function CreatePost({ variant }: { variant: 'post' | 'launch' }) {
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
   const {
     text,
     setText,

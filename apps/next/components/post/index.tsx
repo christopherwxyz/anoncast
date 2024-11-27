@@ -27,6 +27,7 @@ import { useRouter } from 'next/navigation'
 import { hashMessage } from 'viem'
 import { Input } from '../ui/input'
 import { useQuery } from '@tanstack/react-query'
+import { useLaunchPost } from '@/hooks/use-launch-post'
 
 function formatNumber(num: number): string {
   if (num < 1000) return num.toString()
@@ -44,6 +45,7 @@ export function Post({
   cast: Cast
   tokenAddress: string
 }) {
+  const { variant } = useCreatePost()
   const { address } = useAccount()
   const { data: balance } = useBalance(tokenAddress)
   const [reveal, setReveal] = useState(cast.reveal)
@@ -58,7 +60,18 @@ export function Post({
     address &&
     !!balance &&
     balance >= BigInt(TOKEN_CONFIG[tokenAddress].promoteAmount) &&
-    !cast.tweetId
+    !cast.tweetId &&
+    variant === 'anoncast' &&
+    !cast.text.match(/.*clanker.*launch.*/)
+
+  const canLaunch =
+    address &&
+    !!balance &&
+    balance >= BigInt(TOKEN_CONFIG[tokenAddress].launchAmount) &&
+    !cast.launchHash &&
+    ((variant === 'anonfun' &&
+      cast.hash !== '0x5c790f70ffe770c68248775af6f2c1fcfb29de58') ||
+      cast.text.match(/.*clanker.*launch.*/))
 
   const canReveal = address && !!cast.reveal && !cast.reveal.revealedAt
 
@@ -245,6 +258,7 @@ export function Post({
                 />
               )}
               {canPromote && <PromoteButton cast={cast} tokenAddress={tokenAddress} />}
+              {canLaunch && <LaunchButton cast={cast} tokenAddress={tokenAddress} />}
               {canDelete && <DeleteButton cast={cast} tokenAddress={tokenAddress} />}
             </div>
           </div>
@@ -353,7 +367,7 @@ function PromoteButton({ cast, tokenAddress }: { cast: Cast; tokenAddress: strin
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <p className="text-sm underline decoration-dotted font-semibold cursor-pointer hover:text-red-400">
+        <p className="text-sm underline decoration-dotted font-semibold cursor-pointer hover:text-zinc-400">
           Promote
         </p>
       </AlertDialogTrigger>
@@ -394,6 +408,56 @@ function PromoteButton({ cast, tokenAddress }: { cast: Cast; tokenAddress: strin
               </div>
             ) : (
               'Promote'
+            )}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+function LaunchButton({ cast, tokenAddress }: { cast: Cast; tokenAddress: string }) {
+  const { toast } = useToast()
+  const { launchPost, launchState } = useLaunchPost(tokenAddress)
+  const [open, setOpen] = useState(false)
+
+  const handleLaunch = async () => {
+    await launchPost(cast.hash)
+    toast({
+      title: 'Post will be launched in 1-2 minutes',
+    })
+    setOpen(false)
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <p className="text-sm text-green-500 underline decoration-dotted font-semibold cursor-pointer hover:text-green-400">
+          Launch
+        </p>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Launch token</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will launch the token to @anonfun via @clanker.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <Button onClick={handleLaunch} disabled={launchState.status !== 'idle'}>
+            {launchState.status === 'generating' ? (
+              <div className="flex flex-row items-center gap-2">
+                <Loader2 className="animate-spin" />
+                <p>Generating proof</p>
+              </div>
+            ) : launchState.status === 'signature' ? (
+              <div className="flex flex-row items-center gap-2">
+                <Loader2 className="animate-spin" />
+                <p>Awaiting signature</p>
+              </div>
+            ) : (
+              'Launch'
             )}
           </Button>
         </AlertDialogFooter>

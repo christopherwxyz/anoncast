@@ -5,12 +5,15 @@ export const signersTable = pgTable('signers', {
   address: varchar({ length: 255 }).notNull().unique(),
   signerUuid: varchar({ length: 255 }).notNull().unique(),
   bestOfSignerUuid: varchar({ length: 255 }),
+  launchSignerUuid: varchar({ length: 255 }),
 })
 
 export const postMappingTable = pgTable('post_mapping', {
   castHash: varchar({ length: 255 }).primaryKey(),
   tweetId: varchar({ length: 255 }),
   bestOfHash: varchar({ length: 255 }),
+  launchTweetId: varchar({ length: 255 }),
+  launchHash: varchar({ length: 255 }),
 })
 
 export const postRevealTable = pgTable('post_reveal', {

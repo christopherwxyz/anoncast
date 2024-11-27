@@ -6,8 +6,9 @@ import AnimatedTabs from './animated-tabs'
 import { Skeleton } from '../ui/skeleton'
 import { Post } from '../post'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
-export default function PostFeed({
+export function PostFeed({
   tokenAddress,
   defaultTab = 'trending',
 }: {
@@ -15,6 +16,7 @@ export default function PostFeed({
   defaultTab?: 'new' | 'trending'
 }) {
   const [selected, setSelected] = useState<'new' | 'trending'>(defaultTab)
+  const router = useRouter()
 
   const { data: trendingPosts, isLoading: isTrendingLoading } = useQuery({
     queryKey: ['trending', tokenAddress],
@@ -38,7 +40,14 @@ export default function PostFeed({
         <AnimatedTabs
           tabs={['trending', 'new']}
           activeTab={selected}
+<<<<<<< HEAD
           onTabChange={(tab) => setSelected(tab as 'new' | 'trending')}
+=======
+          onTabChange={(tab) => {
+            setSelected(tab as 'new' | 'trending')
+            router.push(tab === 'new' ? '/anoncast/new' : '/')
+          }}
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
           layoutId="feed-tabs"
         />
       </div>
@@ -54,6 +63,63 @@ export default function PostFeed({
         <SkeletonPosts />
       ) : trendingPosts?.length && trendingPosts?.length > 0 ? (
         <Posts casts={trendingPosts} tokenAddress={tokenAddress} />
+      ) : (
+        <h1>Something went wrong. Please refresh the page.</h1>
+      )}
+    </div>
+  )
+}
+
+export function PromotedFeed({
+  tokenAddress,
+  defaultTab = 'promoted',
+}: {
+  tokenAddress: string
+  defaultTab?: 'new' | 'promoted'
+}) {
+  const [selected, setSelected] = useState<'new' | 'promoted'>(defaultTab)
+  const router = useRouter()
+  const { data: promotedLaunches, isLoading: isPromotedLoading } = useQuery({
+    queryKey: ['launches', 'promoted', tokenAddress],
+    queryFn: async (): Promise<Cast[]> => {
+      const response = await api.getPromotedLaunches(tokenAddress)
+      return response?.casts || []
+    },
+  })
+
+  const { data: newLaunches, isLoading: isNewLoading } = useQuery({
+    queryKey: ['launches', 'new', tokenAddress],
+    queryFn: async (): Promise<Cast[]> => {
+      const response = await api.getNewLaunches(tokenAddress)
+      return response?.casts || []
+    },
+  })
+
+  return (
+    <div className="flex flex-col gap-4 ">
+      <div className="flex flex-row justify-between">
+        <AnimatedTabs
+          tabs={['promoted', 'new']}
+          activeTab={selected}
+          onTabChange={(tab) => {
+            setSelected(tab as 'new' | 'promoted')
+            router.push(tab === 'new' ? '/anonfun/new' : '/anonfun')
+          }}
+          layoutId="launch-tabs"
+        />
+      </div>
+      {selected === 'new' ? (
+        isNewLoading ? (
+          <SkeletonPosts />
+        ) : newLaunches?.length && newLaunches?.length > 0 ? (
+          <Posts casts={newLaunches} tokenAddress={tokenAddress} />
+        ) : (
+          <h1>Something went wrong. Please refresh the page.</h1>
+        )
+      ) : isPromotedLoading ? (
+        <SkeletonPosts />
+      ) : promotedLaunches?.length && promotedLaunches?.length > 0 ? (
+        <Posts casts={promotedLaunches} tokenAddress={tokenAddress} />
       ) : (
         <h1>Something went wrong. Please refresh the page.</h1>
       )}

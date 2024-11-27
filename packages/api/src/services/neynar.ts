@@ -19,11 +19,13 @@ const redis = new Redis(process.env.REDIS_URL as string)
 
 class NeynarService {
   private readonly apiKey: string
+  private readonly anonfunApiKey: string
   private readonly baseUrl = 'https://api.neynar.com/v2'
   private static instance: NeynarService
 
-  private constructor(apiKey: string) {
+  private constructor(apiKey: string, anonfunApiKey: string) {
     this.apiKey = apiKey
+    this.anonfunApiKey = anonfunApiKey
   }
 
   static getInstance(): NeynarService {
@@ -32,7 +34,11 @@ class NeynarService {
       if (!apiKey) {
         throw new Error('NEYNAR_API_KEY environment variable is not set')
       }
-      NeynarService.instance = new NeynarService(apiKey)
+      const anonfunApiKey = process.env.NEYNAR_API_KEY_ANONFUN
+      if (!anonfunApiKey) {
+        throw new Error('NEYNAR_API_KEY_ANONFUN environment variable is not set')
+      }
+      NeynarService.instance = new NeynarService(apiKey, anonfunApiKey)
     }
     return NeynarService.instance
   }
@@ -44,16 +50,17 @@ class NeynarService {
       maxRetries?: number
       retryDelay?: number
       body?: string
+      anonfun?: boolean
     }
   ): Promise<T> {
-    const { maxRetries = 1, retryDelay = 10000, method, body } = options ?? {}
+    const { maxRetries = 1, retryDelay = 10000, method, body, anonfun } = options ?? {}
     let retries = 0
 
     while (retries < maxRetries) {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        'X-API-KEY': this.apiKey,
+        'X-API-KEY': anonfun ? this.anonfunApiKey : this.apiKey,
       }
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers,
@@ -115,6 +122,12 @@ class NeynarService {
     )
   }
 
+  async searchCasts(fid: number, q: string) {
+    return this.makeRequest<GetBulkCastsResponse>(
+      `/farcaster/cast/search?q=${q}&author_fid=${fid}&priority_mode=false&limit=100`
+    )
+  }
+
   async post(params: {
     tokenAddress: string
     text: string
@@ -122,8 +135,13 @@ class NeynarService {
     quote?: string
     parent?: string
     channel?: string
+    launchSigner?: boolean
+    bestOfSigner?: boolean
   }) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
+    if (!signerUuid) {
+      throw new Error('No signer found for address')
+    }
 
     const embeds: Array<{
       url?: string
@@ -149,7 +167,11 @@ class NeynarService {
     }
 
     const body = {
-      signer_uuid: signerUuid.signerUuid,
+      signer_uuid: params.launchSigner
+        ? signerUuid.launchSignerUuid
+        : params.bestOfSigner
+          ? signerUuid.bestOfSignerUuid
+          : signerUuid.signerUuid,
       parent: params.parent,
       parent_author_fid: parentAuthorFid,
       text: params.text,
@@ -169,6 +191,7 @@ class NeynarService {
     const response = await this.makeRequest<PostCastResponse>('/farcaster/cast', {
       method: 'POST',
       body: JSON.stringify(body),
+      anonfun: params.launchSigner,
     })
 
     if (!response.success) {
@@ -184,6 +207,10 @@ class NeynarService {
 
   async delete(params: DeleteParams) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
+    if (!signerUuid) {
+      throw new Error('No signer found for address')
+    }
+
     const cast = await this.getCast(params.hash)
     if (!cast.cast) {
       return {
@@ -206,6 +233,9 @@ class NeynarService {
 
   async postAsQuote(params: QuoteCastParams) {
     const signerUuid = await getSignerForAddress(params.tokenAddress)
+    if (!signerUuid) {
+      throw new Error('No signer found for address')
+    }
 
     const body = {
       signer_uuid: signerUuid.bestOfSignerUuid,

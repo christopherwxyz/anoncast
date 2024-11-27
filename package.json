@@ -1,7 +1,10 @@
 {
   "name": "anon",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "build": "bun run --filter '**' build",
     "next:dev": "bun run --filter @anon/next dev",
@@ -13,6 +16,7 @@
     "cron:profile-proofs": "bun run --filter @anon/cron profile-proofs",
     "circuits:compile": "bun run --filter @anon/circuits compile",
     "queue:start": "bun run --filter @anon/queue start",
+    "queue:start:manual": "bun run --filter @anon/queue start:manual",
     "queue:start:promote-post": "bun run --filter @anon/queue start promote-post",
     "queue:ui": "bun run --filter @anon/queue ui",
     "queue:process-failed": "bun run --filter @anon/queue process-failed",

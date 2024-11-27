@@ -1,9 +1,8 @@
-import { ProofData } from '@noir-lang/types'
-import createPostCircuit from '@anon/circuits/create-post/target/main.json'
-import submitHashCircuit from '@anon/circuits/submit-hash/target/main.json'
 import { recoverPublicKey } from 'viem'
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg'
-import { Noir } from '@noir-lang/noir_js'
+import { type Noir } from '@noir-lang/noir_js'
+import { ProofData } from '@noir-lang/types'
+import { chunkHexString, getCircuit, stringToHexArray } from './utils'
 
 export interface Tree {
   elements: {
@@ -18,6 +17,7 @@ export enum ProofType {
   CREATE_POST,
   DELETE_POST,
   PROMOTE_POST,
+  LAUNCH_POST,
 }
 
 interface SignatureArgs {
@@ -47,6 +47,29 @@ interface ProofArgs {
   input: CreatePostArgs | SubmitHashArgs
 }
 
+type ProverModules = {
+  Noir: typeof Noir
+  BarretenbergBackend: typeof BarretenbergBackend
+}
+
+let proverPromise: Promise<ProverModules> | null = null
+
+export async function initProver(): Promise<ProverModules> {
+  if (!proverPromise) {
+    proverPromise = (async () => {
+      const [{ Noir }, { BarretenbergBackend }] = await Promise.all([
+        import('@noir-lang/noir_js'),
+        import('@noir-lang/backend_barretenberg'),
+      ])
+      return {
+        Noir,
+        BarretenbergBackend,
+      }
+    })()
+  }
+  return proverPromise
+}
+
 async function getTree(args: {
   tokenAddress: string
   proofType: ProofType
@@ -65,6 +88,7 @@ async function getTree(args: {
 }
 
 export async function generateProof(args: ProofArgs): Promise<ProofData | null> {
+  const { BarretenbergBackend, Noir } = await initProver()
   const tree = await getTree({
     tokenAddress: args.tokenAddress,
     proofType: args.proofType,
@@ -74,7 +98,6 @@ export async function generateProof(args: ProofArgs): Promise<ProofData | null> 
   }
 
   const circuit = getCircuit(args.proofType)
-
   // @ts-ignore
   const backend = new BarretenbergBackend(circuit)
   // @ts-ignore
@@ -126,7 +149,7 @@ export async function generateProof(args: ProofArgs): Promise<ProofData | null> 
       args.input.embeds.length > 1 ? args.input.embeds[1] : '',
       16
     )
-    input.quote = args.input.quote ?? `0x${BigInt(0).toString(16)}`
+    input.quote_hash = args.input.quote ?? `0x${BigInt(0).toString(16)}`
     input.channel = stringToHexArray(args.input.channel ?? '', 1)[0]
     input.parent = args.input.parent ?? `0x${BigInt(0).toString(16)}`
     input.reveal_hash = args.input.revealHash
@@ -134,82 +157,5 @@ export async function generateProof(args: ProofArgs): Promise<ProofData | null> 
       : [`0x${BigInt(0).toString(16)}`, `0x${BigInt(0).toString(16)}`]
   }
 
-  // @ts-ignore
   return await noir.generateFinalProof(input)
-}
-
-export async function getProvingBackend(proofType: ProofType) {
-  const circuit = getCircuit(proofType)
-  // @ts-ignore
-  const backend = new BarretenbergBackend(circuit)
-  // @ts-ignore
-  const noir = new Noir(circuit, backend)
-
-  await backend.instantiate()
-
-  await backend['api'].acirInitProvingKey(
-    backend['acirComposer'],
-    backend['acirUncompressedBytecode']
-  )
-
-  return noir
-}
-
-export async function verifyProof(proofType: ProofType, proof: ProofData) {
-  const circuit = getCircuit(proofType)
-  // @ts-ignore
-  const backend = new BarretenbergBackend(circuit)
-  // @ts-ignore
-  const noir = new Noir(circuit, backend)
-
-  await backend.instantiate()
-
-  await backend['api'].acirInitProvingKey(
-    backend['acirComposer'],
-    backend['acirUncompressedBytecode']
-  )
-
-  return await noir.verifyFinalProof(proof)
-}
-
-function getCircuit(type: ProofType) {
-  switch (type) {
-    case ProofType.CREATE_POST:
-      return createPostCircuit
-  }
-  return submitHashCircuit
-}
-
-function stringToHexArray(input: string, length: number): string[] {
-  // Convert the string to a UTF-8 byte array
-  const encoder = new TextEncoder()
-  const byteArray = encoder.encode(input)
-
-  // Convert the byte array to a hexadecimal string
-  let hexString = ''
-  for (const byte of Array.from(byteArray)) {
-    hexString += byte.toString(16).padStart(2, '0')
-  }
-
-  const totalLength = 60 * length // 16 elements of 60 characters
-  hexString = hexString.padEnd(totalLength, '0')
-
-  // Split the hexadecimal string into chunks of 60 characters (30 bytes)
-  const chunkSize = 60
-  const hexArray: string[] = []
-  for (let i = 0; i < hexString.length; i += chunkSize) {
-    hexArray.push(
-      `0x${hexString.substring(i, Math.min(i + chunkSize, hexString.length))}`
-    )
-  }
-
-  return hexArray
-}
-
-function chunkHexString(hexString: string, chunkSize: number): string[] {
-  const chunks: string[] = []
-  for (let i = 0; i < hexString.length; i += chunkSize) {
-    chunks.push(`0x${hexString.slice(i, i + chunkSize)}`)
-  }
-  return chunks
 }

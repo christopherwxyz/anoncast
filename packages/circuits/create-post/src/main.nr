@@ -1,5 +1,5 @@
-use dep::std;
 use dep::ecrecover;
+use dep::std;
 
 fn main(
     // Token Balance
@@ -21,7 +21,7 @@ fn main(
     text: pub [Field; 16],
     embed_1: pub [Field; 16],
     embed_2: pub [Field; 16],
-    quote: pub Field,
+    quote_hash: pub Field,
     channel: pub Field,
     parent: pub Field,
     reveal_hash: pub [Field; 2],
@@ -35,7 +35,7 @@ fn main(
     let new_root = compute_root_from_leaf(commitment, index, note_hash_path);
     assert(new_root == note_root);
 
-    (timestamp, text, embed_1, embed_2, quote, channel, parent, token_address, reveal_hash)
+    (timestamp, text, embed_1, embed_2, quote_hash, channel, parent, token_address, reveal_hash)
 }
 
 // Returns the root of the tree from the provided leaf and its hashpath, using mimc hash

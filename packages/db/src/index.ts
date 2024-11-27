@@ -28,14 +28,22 @@ export async function createSignerForAddress(address: string, signerUuid: string
   return user
 }
 
-export async function createPostMapping(
-  castHash: string,
-  tweetId?: string,
+export async function createPostMapping({
+  castHash,
+  tweetId,
+  bestOfHash,
+  launchTweetId,
+  launchHash,
+}: {
+  castHash: string
+  tweetId?: string
   bestOfHash?: string
-) {
+  launchTweetId?: string
+  launchHash?: string
+}) {
   await db
     .insert(postMappingTable)
-    .values({ castHash, tweetId, bestOfHash })
+    .values({ castHash, tweetId, bestOfHash, launchTweetId, launchHash })
     .onConflictDoNothing()
 }
 

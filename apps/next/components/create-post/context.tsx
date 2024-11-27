@@ -1,8 +1,15 @@
 import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
+<<<<<<< HEAD
 import type { Cast, Channel } from '@/lib/types'
 import { generateProof, ProofType } from '@anon/utils/src/proofs'
 import { createContext, useContext, useState, type ReactNode } from 'react'
+=======
+import { Cast, Channel } from '@/lib/types'
+import { generateProof, ProofType } from '@anon/utils/src/proofs/generate'
+import { useRouter } from 'next/navigation'
+import { createContext, useContext, useState, ReactNode } from 'react'
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
 import { hashMessage } from 'viem'
 import { useAccount, useSignMessage } from 'wagmi'
 
@@ -35,21 +42,31 @@ interface CreatePostContextProps {
   setConfetti: (confetti: boolean) => void
   revealPhrase: string | null
   setRevealPhrase: (revealPhrase: string | null) => void
+<<<<<<< HEAD
   launch: boolean
   setLaunch: (launch: boolean) => void
+=======
+  variant: 'anoncast' | 'anonfun'
+  setVariant: (variant: 'anoncast' | 'anonfun') => void
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
 }
 
 const CreatePostContext = createContext<CreatePostContextProps | undefined>(undefined)
 
 export const CreatePostProvider = ({
   tokenAddress,
+<<<<<<< HEAD
   // TODO: Implement launchAddress for launch variant
   launchAddress,
+=======
+  initialVariant,
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
   children,
 }: {
   tokenAddress: string
   launchAddress: string
   children: ReactNode
+  initialVariant?: 'anoncast' | 'anonfun'
 }) => {
   const [text, setText] = useState<string | null>(null)
   const [image, setImage] = useState<string | null>(null)
@@ -64,6 +81,10 @@ export const CreatePostProvider = ({
   const { toast } = useToast()
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
+  const [variant, setVariant] = useState<'anoncast' | 'anonfun'>(
+    initialVariant || 'anoncast'
+  )
+  const router = useRouter()
 
   const resetState = () => {
     setState({ status: 'idle' })
@@ -128,14 +149,19 @@ export const CreatePostProvider = ({
       if (process.env.NEXT_PUBLIC_DISABLE_QUEUE) {
         await api.createPost(
           Array.from(proof.proof),
-          proof.publicInputs.map((i) => Array.from(i))
+          proof.publicInputs.map((input) => Array.from(input))
         )
       } else {
         await api.submitAction(
           ProofType.CREATE_POST,
           Array.from(proof.proof),
+<<<<<<< HEAD
           proof.publicInputs.map((i) => Array.from(i)),
           { asLaunch: launch }
+=======
+          proof.publicInputs.map((input) => Array.from(input)),
+          {}
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
         )
       }
 
@@ -151,6 +177,11 @@ export const CreatePostProvider = ({
   }
 
   const embedCount = [image, embed, quote].filter((e) => e !== null).length
+
+  const handleSetVariant = (variant: 'anoncast' | 'anonfun') => {
+    setVariant(variant)
+    router.push(variant === 'anoncast' ? '/' : '/anonfun')
+  }
 
   return (
     <CreatePostContext.Provider
@@ -174,8 +205,13 @@ export const CreatePostProvider = ({
         setConfetti,
         revealPhrase,
         setRevealPhrase,
+<<<<<<< HEAD
         launch,
         setLaunch,
+=======
+        variant,
+        setVariant: handleSetVariant,
+>>>>>>> 31931ce34095699b5538d648d93bd4e639fc7105
       }}
     >
       {children}
